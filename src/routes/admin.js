@@ -9213,6 +9213,8 @@ router.get('/request-logs', authenticateAdmin, async (req, res) => {
       model: event.model || null,
       tokensIn: toNumber(event.tokensIn),
       tokensOut: toNumber(event.tokensOut),
+      cacheCreateTokens: toNumber(event.cacheCreateTokens),
+      cacheReadTokens: toNumber(event.cacheReadTokens),
       tokensTotal: toNumber(event.tokensTotal),
       price: toNumber(event.price),
       status: toNumber(event.status) ?? event.status,

@@ -65,6 +65,12 @@
                 <div class="flex flex-col leading-tight">
                   <span>In: {{ displayNumber(row.tokensIn) }}</span>
                   <span>Out: {{ displayNumber(row.tokensOut) }}</span>
+                  <span v-if="row.cacheCreateTokens !== undefined && row.cacheCreateTokens !== null">
+                    Cache+: {{ displayNumber(row.cacheCreateTokens) }}
+                  </span>
+                  <span v-if="row.cacheReadTokens !== undefined && row.cacheReadTokens !== null">
+                    Cache Hit: {{ displayNumber(row.cacheReadTokens) }}
+                  </span>
                   <span>Total: {{ displayNumber(row.tokensTotal) }}</span>
                 </div>
               </td>
@@ -171,6 +177,12 @@ const mergeEvents = (events = []) => {
       }
       if (event.tokensOut !== undefined && event.tokensOut !== null) {
         existing.tokensOut = event.tokensOut
+      }
+      if (event.cacheCreateTokens !== undefined && event.cacheCreateTokens !== null) {
+        existing.cacheCreateTokens = event.cacheCreateTokens
+      }
+      if (event.cacheReadTokens !== undefined && event.cacheReadTokens !== null) {
+        existing.cacheReadTokens = event.cacheReadTokens
       }
       if (event.tokensTotal !== undefined && event.tokensTotal !== null) {
         existing.tokensTotal = event.tokensTotal
