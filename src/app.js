@@ -38,6 +38,7 @@ const {
   requestSizeLimit
 } = require('./middleware/auth')
 const { browserFallbackMiddleware } = require('./middleware/browserFallback')
+const { requestContextMiddleware } = require('./middleware/requestContext')
 
 class Application {
   constructor() {
@@ -84,6 +85,9 @@ class Application {
       logger.info('🕐 Initializing Claude account session windows...')
       const claudeAccountService = require('./services/claudeAccountService')
       await claudeAccountService.initializeSessionWindows()
+
+      // 为每个请求建立异步上下文，便于在服务层获取当前请求信息
+      this.app.use(requestContextMiddleware)
 
       // 超早期拦截 /admin-next/ 请求 - 在所有中间件之前
       this.app.use((req, res, next) => {
