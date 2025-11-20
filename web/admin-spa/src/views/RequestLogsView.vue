@@ -53,7 +53,7 @@
                 {{ row.endpoint }}
               </td>
               <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
-                {{ row.userId || '—' }}
+                {{ row.apiKeyName || row.apiKeyId || '—' }}
               </td>
               <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                 {{ row.accountName || row.accountId || '—' }}
@@ -109,7 +109,7 @@ const headers = [
   'Request ID',
   '方法',
   'Endpoint',
-  '用户',
+  'API Key',
   '账户',
   '模型',
   'Tokens (In/Out/Total)',
