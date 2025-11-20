@@ -70,9 +70,7 @@
                   >
                     Cache+: {{ displayNumber(row.cacheCreateTokens) }}
                   </span>
-                  <span
-                    v-if="row.cacheReadTokens !== undefined && row.cacheReadTokens !== null"
-                  >
+                  <span v-if="row.cacheReadTokens !== undefined && row.cacheReadTokens !== null">
                     Cache Hit: {{ displayNumber(row.cacheReadTokens) }}
                   </span>
                   <span>Total: {{ displayNumber(row.tokensTotal) }}</span>
