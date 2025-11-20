@@ -10,7 +10,7 @@
       <div class="flex items-center gap-2">
         <span v-if="loading" class="text-xs text-gray-500 dark:text-gray-400">同步中...</span>
         <button
-          class="rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400"
+          class="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow focus:outline-none focus:ring-2"
           @click="manualRefresh"
         >
           手动刷新
@@ -23,20 +23,30 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
           <thead class="bg-gray-50 dark:bg-gray-800/50">
             <tr>
-              <th v-for="header in headers" :key="header" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              <th
+                v-for="header in headers"
+                :key="header"
+                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+              >
                 {{ header }}
               </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-            <tr v-for="row in sortedRows" :key="row.requestId" class="hover:bg-gray-50/70 dark:hover:bg-gray-800/50">
+            <tr
+              v-for="row in sortedRows"
+              :key="row.requestId"
+              class="hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
+            >
               <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                 {{ formatTime(row.timestamp) }}
               </td>
-              <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-100">
+              <td class="px-4 py-3 font-mono text-sm text-gray-700 dark:text-gray-100">
                 {{ row.requestId }}
               </td>
-              <td class="px-4 py-3 text-xs font-semibold uppercase text-primary-600 dark:text-primary-400">
+              <td
+                class="text-primary-600 dark:text-primary-400 px-4 py-3 text-xs font-semibold uppercase"
+              >
                 {{ row.method || '—' }}
               </td>
               <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
