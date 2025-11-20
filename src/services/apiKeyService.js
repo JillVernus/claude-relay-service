@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid')
 const config = require('../../config/config')
 const redis = require('../models/redis')
 const logger = require('../utils/logger')
+const { getRequest } = require('../utils/requestContext')
 
 const ACCOUNT_TYPE_CONFIG = {
   claude: { prefix: 'claude:account:' },
@@ -32,6 +33,18 @@ const ACCOUNT_CATEGORY_MAP = {
   'azure-openai': 'openai',
   gemini: 'gemini',
   droid: 'droid'
+}
+
+const attachRequestLogMeta = (data) => {
+  const req = getRequest()
+  if (!req || !req.requestId) {
+    return
+  }
+
+  req.requestLogMeta = {
+    ...(req.requestLogMeta || {}),
+    ...data
+  }
 }
 
 function normalizeAccountTypeKey(type) {
@@ -982,6 +995,18 @@ class ApiKeyService {
         costBreakdown: costInfo && costInfo.costs ? costInfo.costs : undefined
       })
 
+      // 将使用和费用信息附加到请求上下文，供请求日志使用
+      attachRequestLogMeta({
+        model,
+        accountId: accountId || null,
+        tokensIn: inputTokens,
+        tokensOut: outputTokens,
+        cacheCreateTokens,
+        cacheReadTokens,
+        tokensTotal,
+        price: Number(usageCost.toFixed(6))
+      })
+
       const logParts = [`Model: ${model}`, `Input: ${inputTokens}`, `Output: ${outputTokens}`]
       if (cacheCreateTokens > 0) {
         logParts.push(`Cache Create: ${cacheCreateTokens}`)
@@ -1202,6 +1227,19 @@ class ApiKeyService {
       }
 
       await redis.addUsageRecord(keyId, usageRecord)
+
+      // 将使用和费用信息附加到请求上下文，供请求日志使用
+      attachRequestLogMeta({
+        model,
+        accountId: accountId || null,
+        accountType: accountType || null,
+        tokensIn: inputTokens,
+        tokensOut: outputTokens,
+        cacheCreateTokens,
+        cacheReadTokens,
+        tokensTotal,
+        price: Number((costInfo.totalCost || 0).toFixed(6))
+      })
 
       const logParts = [`Model: ${model}`, `Input: ${inputTokens}`, `Output: ${outputTokens}`]
       if (cacheCreateTokens > 0) {

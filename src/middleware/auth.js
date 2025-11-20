@@ -4,6 +4,7 @@ const apiKeyService = require('../services/apiKeyService')
 const userService = require('../services/userService')
 const logger = require('../utils/logger')
 const redis = require('../models/redis')
+const requestLogService = require('../services/requestLogService')
 // const { RateLimiterRedis } = require('rate-limiter-flexible') // 暂时未使用
 const ClientValidator = require('../validators/clientValidator')
 
@@ -1011,10 +1012,21 @@ const corsMiddleware = (req, res, next) => {
 const requestLogger = (req, res, next) => {
   const start = Date.now()
   const requestId = Math.random().toString(36).substring(2, 15)
+  const shouldLogRequest = /^\/(api|claude|openai|droid|gemini|azure)/.test(req.path || '')
 
   // 添加请求ID到请求对象
   req.requestId = requestId
   res.setHeader('X-Request-ID', requestId)
+
+  // 在请求进入时写入开始事件（详细字段在完成时补充）
+  if (shouldLogRequest) {
+    requestLogService.emitStart({
+      requestId,
+      method: req.method,
+      endpoint: req.originalUrl,
+      status: 'pending'
+    })
+  }
 
   // 获取客户端信息
   const clientIP = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'
@@ -1071,6 +1083,46 @@ const requestLogger = (req, res, next) => {
       logger.warn(
         `🐌 [${requestId}] Slow request detected: ${duration}ms for ${req.method} ${req.originalUrl}`
       )
+    }
+
+    // 将完成事件写入请求日志流（包含使用信息）
+    const meta = req.requestLogMeta || {}
+    const tokensIn = meta.tokensIn ?? meta.inputTokens ?? null
+    const tokensOut = meta.tokensOut ?? meta.outputTokens ?? null
+    const cacheCreateTokens = meta.cacheCreateTokens ?? meta.cacheTokens ?? null
+    const cacheReadTokens = meta.cacheReadTokens ?? null
+    const tokensTotal =
+      meta.tokensTotal ??
+      meta.totalTokens ??
+      (tokensIn !== null && tokensOut !== null
+        ? tokensIn +
+          tokensOut +
+          (cacheCreateTokens || 0) +
+          (cacheReadTokens || 0)
+        : null)
+
+    if (shouldLogRequest) {
+      requestLogService
+        .emitFinish({
+          requestId,
+          method: req.method,
+          endpoint: req.originalUrl,
+          apiKeyId: req.apiKey?.id,
+          apiKeyName: req.apiKey?.name,
+          userId: req.apiKey?.userId || req.apiKey?.createdBy || null,
+          accountId: meta.accountId || null,
+          accountName: meta.accountName || null,
+          model: meta.model || null,
+          tokensIn,
+          tokensOut,
+          tokensTotal,
+          price: meta.price,
+          status: res.statusCode,
+          durationMs: duration
+        })
+        .catch((error) => {
+          logger.debug('Failed to emit request finish event:', error.message)
+        })
     }
   })
 

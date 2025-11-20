@@ -12,6 +12,7 @@ const MainLayout = () => import('@/components/layout/MainLayout.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const ApiKeysView = () => import('@/views/ApiKeysView.vue')
 const AccountsView = () => import('@/views/AccountsView.vue')
+const RequestLogsView = () => import('@/views/RequestLogsView.vue')
 const TutorialView = () => import('@/views/TutorialView.vue')
 const SettingsView = () => import('@/views/SettingsView.vue')
 const ApiStatsView = () => import('@/views/ApiStatsView.vue')
@@ -82,6 +83,18 @@ const routes = [
         path: '',
         name: 'ApiKeys',
         component: ApiKeysView
+      }
+    ]
+  },
+  {
+    path: '/request-logs',
+    component: MainLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'RequestLogs',
+        component: RequestLogsView
       }
     ]
   },

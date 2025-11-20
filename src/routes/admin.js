@@ -29,6 +29,7 @@ const fs = require('fs')
 const path = require('path')
 const config = require('../../config/config')
 const ProxyHelper = require('../utils/proxyHelper')
+const requestLogService = require('../services/requestLogService')
 
 const router = express.Router()
 
@@ -9178,6 +9179,50 @@ router.post('/droid-accounts/:id/refresh-token', authenticateAdmin, async (req, 
   } catch (error) {
     logger.error(`Failed to refresh Droid account token ${req.params.id}:`, error)
     return res.status(500).json({ error: 'Failed to refresh token', message: error.message })
+  }
+})
+
+// 请求日志（仅限 API Key 请求）
+router.get('/request-logs', authenticateAdmin, async (req, res) => {
+  try {
+    const cursor = req.query.cursor || '0-0'
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500)
+
+    const { events, lastId } = await requestLogService.getEvents(cursor, limit)
+
+    const toNumber = (value) => {
+      if (value === undefined || value === null || value === '') {
+        return null
+      }
+      const num = Number(value)
+      return Number.isFinite(num) ? num : null
+    }
+
+    const mapped = events.map((event) => ({
+      id: event.id,
+      phase: event.phase || 'unknown',
+      requestId: event.requestId,
+      timestamp: event.timestamp,
+      method: event.method,
+      endpoint: event.endpoint,
+      apiKeyId: event.apiKeyId || null,
+      apiKeyName: event.apiKeyName || null,
+      userId: event.userId || null,
+      accountId: event.accountId || null,
+      accountName: event.accountName || null,
+      model: event.model || null,
+      tokensIn: toNumber(event.tokensIn),
+      tokensOut: toNumber(event.tokensOut),
+      tokensTotal: toNumber(event.tokensTotal),
+      price: toNumber(event.price),
+      status: toNumber(event.status) ?? event.status,
+      durationMs: toNumber(event.durationMs)
+    }))
+
+    return res.json({ success: true, events: mapped, lastId })
+  } catch (error) {
+    logger.error('Failed to load request logs:', error)
+    return res.status(500).json({ success: false, error: 'Failed to load request logs' })
   }
 })
 
