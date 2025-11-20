@@ -117,9 +117,15 @@ const refreshInterval = 3000
 let timer = null
 
 const statusClassFor = (status) => {
-  if (status === '...') return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-  if (Number(status) >= 500) return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
-  if (Number(status) >= 400) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'
+  if (status === '...') {
+    return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+  }
+  if (Number(status) >= 500) {
+    return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200'
+  }
+  if (Number(status) >= 400) {
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'
+  }
   return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-200'
 }
 
