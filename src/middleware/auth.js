@@ -711,7 +711,12 @@ const authenticateAdmin = async (req, res, next) => {
     }
 
     const authDuration = Date.now() - startTime
-    logger.security(`🔐 Admin authenticated: ${adminSession.username} in ${authDuration}ms`)
+    const isAdminRequestLogPoll = (req.originalUrl || '').startsWith('/admin/request-logs')
+    if (isAdminRequestLogPoll) {
+      logger.debug?.(`🔐 Admin authenticated (request logs poll): ${adminSession.username}`)
+    } else {
+      logger.security(`🔐 Admin authenticated: ${adminSession.username} in ${authDuration}ms`)
+    }
 
     return next()
   } catch (error) {
@@ -1016,6 +1021,9 @@ const requestLogger = (req, res, next) => {
   const start = Date.now()
   const requestId = Math.random().toString(36).substring(2, 15)
   const shouldLogRequest = /^\/(api|claude|openai|droid|gemini|azure)/.test(req.path || '')
+  const isAdminRequestLogPoll = (req.originalUrl || '').startsWith('/admin/request-logs')
+  const shouldLogInfo =
+    req.originalUrl !== '/health' && !isAdminRequestLogPoll
 
   // 添加请求ID到请求对象
   req.requestId = requestId
@@ -1037,7 +1045,7 @@ const requestLogger = (req, res, next) => {
   const referer = req.get('Referer') || 'none'
 
   // 记录请求开始
-  if (req.originalUrl !== '/health') {
+  if (shouldLogInfo) {
     // 避免健康检查日志过多
     logger.info(`▶️ [${requestId}] ${req.method} ${req.originalUrl} | IP: ${clientIP}`)
   }
@@ -1070,7 +1078,7 @@ const requestLogger = (req, res, next) => {
         `◀️ [${requestId}] ${req.method} ${req.originalUrl} | ${res.statusCode} | ${duration}ms | ${contentLength}B`,
         logMetadata
       )
-    } else if (req.originalUrl !== '/health') {
+    } else if (shouldLogInfo) {
       logger.request(req.method, req.originalUrl, res.statusCode, duration, logMetadata)
     }
 
@@ -1082,7 +1090,7 @@ const requestLogger = (req, res, next) => {
     }
 
     // 慢请求警告
-    if (duration > 5000) {
+    if (duration > 5000 && shouldLogInfo) {
       logger.warn(
         `🐌 [${requestId}] Slow request detected: ${duration}ms for ${req.method} ${req.originalUrl}`
       )

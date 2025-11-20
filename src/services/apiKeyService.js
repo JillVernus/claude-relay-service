@@ -79,6 +79,109 @@ class ApiKeyService {
     this.prefix = config.security.apiKeyPrefix
   }
 
+  _detectAccountType(accountId, accountTypeHint, keyData) {
+    if (!accountId) {
+      return null
+    }
+
+    const normalizedHint = normalizeAccountTypeKey(accountTypeHint)
+    if (normalizedHint) {
+      return normalizedHint
+    }
+
+    if (keyData) {
+      if (keyData.claudeAccountId === accountId) return 'claude'
+      if (keyData.claudeConsoleAccountId === accountId) return 'claude-console'
+      if (keyData.geminiAccountId === accountId) return 'gemini'
+      if (keyData.openaiAccountId === accountId) return 'openai'
+      if (keyData.azureOpenaiAccountId === accountId) return 'azure-openai'
+      if (keyData.bedrockAccountId === accountId) return 'bedrock'
+      if (keyData.droidAccountId === accountId) return 'droid'
+    }
+
+    return null
+  }
+
+  async _resolveAccountName(accountId, accountTypeHint = null, keyData = null) {
+    if (!accountId) {
+      return null
+    }
+
+    const preferredType = this._detectAccountType(accountId, accountTypeHint, keyData)
+
+    const tryGetName = async (type) => {
+      if (!type) return null
+      try {
+        switch (type) {
+          case 'claude': {
+            const claudeAccountService = require('./claudeAccountService')
+            return (await claudeAccountService.getAccount(accountId))?.name || null
+          }
+          case 'claude-console': {
+            const claudeConsoleAccountService = require('./claudeConsoleAccountService')
+            return (await claudeConsoleAccountService.getAccount(accountId))?.name || null
+          }
+          case 'gemini': {
+            const geminiAccountService = require('./geminiAccountService')
+            return (await geminiAccountService.getAccount(accountId))?.name || null
+          }
+          case 'openai': {
+            const openaiAccountService = require('./openaiAccountService')
+            const account = await openaiAccountService.getAccount(accountId)
+            return account?.name || account?.identifier || null
+          }
+          case 'openai-responses': {
+            const openaiResponsesAccountService = require('./openaiResponsesAccountService')
+            return (await openaiResponsesAccountService.getAccount(accountId))?.name || null
+          }
+          case 'azure-openai': {
+            const azureOpenaiAccountService = require('./azureOpenaiAccountService')
+            return (await azureOpenaiAccountService.getAccount(accountId))?.name || null
+          }
+          case 'bedrock': {
+            const bedrockAccountService = require('./bedrockAccountService')
+            return (await bedrockAccountService.getAccount(accountId))?.name || null
+          }
+          case 'droid': {
+            const droidAccountService = require('./droidAccountService')
+            return (await droidAccountService.getAccount(accountId))?.name || null
+          }
+          default:
+            return null
+        }
+      } catch (error) {
+        logger.debug(`Failed to resolve account name for ${accountId} (${type}): ${error.message}`)
+        return null
+      }
+    }
+
+    let accountName = await tryGetName(preferredType)
+    if (accountName) {
+      return accountName
+    }
+
+    const fallbackTypes = [
+      'claude',
+      'claude-console',
+      'gemini',
+      'openai',
+      'openai-responses',
+      'azure-openai',
+      'bedrock',
+      'droid'
+    ]
+
+    for (const type of fallbackTypes) {
+      if (type === preferredType) continue
+      accountName = await tryGetName(type)
+      if (accountName) {
+        return accountName
+      }
+    }
+
+    return null
+  }
+
   // 🔑 生成新的API Key
   async generateApiKey(options = {}) {
     const {
@@ -906,10 +1009,13 @@ class ApiKeyService {
     cacheCreateTokens = 0,
     cacheReadTokens = 0,
     model = 'unknown',
-    accountId = null
+    accountId = null,
+    accountName = null,
+    accountType = null
   ) {
     try {
       const totalTokens = inputTokens + outputTokens + cacheCreateTokens + cacheReadTokens
+      const normalizedAccountType = normalizeAccountTypeKey(accountType)
 
       // 计算费用
       const CostCalculator = require('../utils/costCalculator')
@@ -983,6 +1089,12 @@ class ApiKeyService {
         }
       }
 
+      const resolvedAccountName =
+        accountName ||
+        (accountId
+          ? await this._resolveAccountName(accountId, normalizedAccountType, keyData)
+          : null)
+
       // 记录单次请求的使用详情
       const usageCost = costInfo && costInfo.costs ? costInfo.costs.total || 0 : 0
       await redis.addUsageRecord(keyId, {
@@ -1002,6 +1114,8 @@ class ApiKeyService {
       attachRequestLogMeta({
         model,
         accountId: accountId || null,
+        accountName: resolvedAccountName || null,
+        accountType: normalizedAccountType || null,
         tokensIn: inputTokens,
         tokensOut: outputTokens,
         cacheCreateTokens,
@@ -1060,7 +1174,8 @@ class ApiKeyService {
     usageObject,
     model = 'unknown',
     accountId = null,
-    accountType = null
+    accountType = null,
+    accountName = null
   ) {
     try {
       // 提取 token 数量
@@ -1070,6 +1185,7 @@ class ApiKeyService {
       const cacheReadTokens = usageObject.cache_read_input_tokens || 0
 
       const totalTokens = inputTokens + outputTokens + cacheCreateTokens + cacheReadTokens
+      const normalizedAccountType = normalizeAccountTypeKey(accountType)
 
       // 计算费用（支持详细的缓存类型）- 添加错误处理
       let costInfo = { totalCost: 0, ephemeral5mCost: 0, ephemeral1hCost: 0 }
@@ -1154,7 +1270,7 @@ class ApiKeyService {
         )
 
         // 记录 Opus 周费用（如果适用）
-        await this.recordOpusCost(keyId, costInfo.totalCost, model, accountType)
+        await this.recordOpusCost(keyId, costInfo.totalCost, model, normalizedAccountType)
 
         // 记录详细的缓存费用（如果有）
         if (costInfo.ephemeral5mCost > 0 || costInfo.ephemeral1hCost > 0) {
@@ -1209,7 +1325,7 @@ class ApiKeyService {
         timestamp: new Date().toISOString(),
         model,
         accountId: accountId || null,
-        accountType: accountType || null,
+        accountType: normalizedAccountType || null,
         inputTokens,
         outputTokens,
         cacheCreateTokens,
@@ -1231,11 +1347,18 @@ class ApiKeyService {
 
       await redis.addUsageRecord(keyId, usageRecord)
 
+      const resolvedAccountName =
+        accountName ||
+        (accountId
+          ? await this._resolveAccountName(accountId, normalizedAccountType, keyData)
+          : null)
+
       // 将使用和费用信息附加到请求上下文，供请求日志使用
       attachRequestLogMeta({
         model,
         accountId: accountId || null,
-        accountType: accountType || null,
+        accountType: normalizedAccountType || null,
+        accountName: resolvedAccountName || null,
         tokensIn: inputTokens,
         tokensOut: outputTokens,
         cacheCreateTokens,
@@ -1290,7 +1413,7 @@ class ApiKeyService {
           ephemeral1h: costInfo.ephemeral1hCost || 0
         },
         accountId,
-        accountType,
+        accountType: normalizedAccountType,
         isLongContext: costInfo.isLongContextRequest || false,
         requestTimestamp: usageRecord.timestamp
       }).catch((err) => {
