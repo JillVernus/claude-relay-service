@@ -340,6 +340,9 @@ class ApiKeyService {
           restrictedModels,
           enableClientRestriction: keyData.enableClientRestriction === 'true',
           allowedClients,
+          userId: keyData.userId || '',
+          userUsername: keyData.userUsername || '',
+          createdBy: keyData.createdBy || '',
           dailyCostLimit: parseFloat(keyData.dailyCostLimit || 0),
           totalCostLimit: parseFloat(keyData.totalCostLimit || 0),
           weeklyOpusCostLimit: parseFloat(keyData.weeklyOpusCostLimit || 0),
@@ -1003,7 +1006,7 @@ class ApiKeyService {
         tokensOut: outputTokens,
         cacheCreateTokens,
         cacheReadTokens,
-        tokensTotal,
+        tokensTotal: totalTokens,
         price: Number(usageCost.toFixed(6))
       })
 
@@ -1237,7 +1240,7 @@ class ApiKeyService {
         tokensOut: outputTokens,
         cacheCreateTokens,
         cacheReadTokens,
-        tokensTotal,
+        tokensTotal: totalTokens,
         price: Number((costInfo.totalCost || 0).toFixed(6))
       })
 
