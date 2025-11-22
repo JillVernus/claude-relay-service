@@ -611,7 +611,10 @@ const handleResponses = async (req, res) => {
             0, // OpenAI没有cache_creation_tokens
             cacheReadTokens,
             actualModel,
-            accountId
+            accountId,
+            null,
+            null,
+            req
           )
 
           logger.info(
@@ -743,7 +746,10 @@ const handleResponses = async (req, res) => {
             0, // OpenAI没有cache_creation_tokens
             cacheReadTokens,
             modelToRecord,
-            accountId
+            accountId,
+            null,
+            null,
+            req
           )
 
           logger.info(

@@ -152,6 +152,11 @@ const mergeEvents = (events = []) => {
       statusClass: statusClassFor('...')
     }
 
+    // 保存 Redis Stream ID 用于排序（始终使用最新的 ID）
+    if (event.id) {
+      existing.id = event.id
+    }
+
     if (event.method) existing.method = event.method
     if (event.endpoint) existing.endpoint = event.endpoint
     if (event.timestamp && !existing.timestamp) existing.timestamp = event.timestamp
@@ -233,9 +238,25 @@ const manualRefresh = () => fetchLogs()
 
 const sortedRows = computed(() => {
   return [...rows.value].sort((a, b) => {
-    const timeA = new Date(a.completedAt || a.timestamp || 0).getTime()
-    const timeB = new Date(b.completedAt || b.timestamp || 0).getTime()
-    return timeB - timeA
+    // 优先使用 Redis Stream ID 排序（始终可用，毫秒+序列精度）
+    // Redis Stream ID 格式: <millisecond-timestamp>-<sequence>
+    // 这确保了 start 和 complete 阶段的一致排序
+    if (a.id && b.id) {
+      return b.id.localeCompare(a.id) // 字符串比较，新的在前
+    }
+
+    // 如果缺少 Redis Stream ID，回退到时间戳排序
+    if (!a.id || !b.id) {
+      console.warn('[Sort] Missing Redis Stream ID, falling back to timestamp:', {
+        a: { requestId: a.requestId, id: a.id, timestamp: a.timestamp },
+        b: { requestId: b.requestId, id: b.id, timestamp: b.timestamp }
+      })
+      const timeA = new Date(a.completedAt || a.timestamp || 0).getTime()
+      const timeB = new Date(b.completedAt || b.timestamp || 0).getTime()
+      return timeB - timeA
+    }
+
+    return 0
   })
 })
 

@@ -61,11 +61,24 @@ async function getEvents(cursor = '0-0', limit = 200) {
   }
 
   try {
-    const startId = cursor && cursor !== '0-0' ? `(${cursor}` : '-'
-    const results = await client.xrange(STREAM_KEY, startId, '+', 'COUNT', limit)
-    const events = results.map(parseEntry)
-    const lastId = events.length > 0 ? events[events.length - 1].id : cursor
-    return { events, lastId }
+    // 修复：初始加载时从最新的日志开始（使用 XREVRANGE 倒序获取）
+    if (cursor === '0-0') {
+      // 使用 XREVRANGE 从最新到最旧获取，然后反转顺序
+      // 注意：这意味着初始加载只显示最新的 limit 条日志
+      // 更老的日志无法通过前端分页访问（因为增量获取只能向前）
+      // 如果需要查看更老的日志，可以查看 Winston 日志文件或增加 limit
+      const results = await client.xrevrange(STREAM_KEY, '+', '-', 'COUNT', limit)
+      const events = results.map(parseEntry).reverse() // 反转回正序（旧到新）
+      const lastId = events.length > 0 ? events[events.length - 1].id : cursor
+      return { events, lastId }
+    } else {
+      // 增量获取：从上次的 cursor 之后开始（只能向前分页）
+      const startId = `(${cursor}`
+      const results = await client.xrange(STREAM_KEY, startId, '+', 'COUNT', limit)
+      const events = results.map(parseEntry)
+      const lastId = events.length > 0 ? events[events.length - 1].id : cursor
+      return { events, lastId }
+    }
   } catch (error) {
     logger.error('❌ Failed to read request log events:', error)
     return { events: [], lastId: cursor }

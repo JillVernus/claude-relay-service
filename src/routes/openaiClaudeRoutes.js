@@ -286,7 +286,9 @@ async function handleChatCompletion(req, res, apiKeyData) {
                 apiKeyData.id,
                 usage, // 直接传递整个 usage 对象，包含可能的 cache_creation 详细数据
                 model,
-                accountId
+                accountId,
+                null,
+                req
               )
               .catch((error) => {
                 logger.error('❌ Failed to record usage:', error)
@@ -374,7 +376,9 @@ async function handleChatCompletion(req, res, apiKeyData) {
             apiKeyData.id,
             usage, // 直接传递整个 usage 对象，包含可能的 cache_creation 详细数据
             claudeRequest.model,
-            accountId
+            accountId,
+            null,
+            req
           )
           .catch((error) => {
             logger.error('❌ Failed to record usage:', error)

@@ -227,7 +227,48 @@ async function handleMessagesRequest(req, res) {
               }
 
               apiKeyService
-                .recordUsageWithDetails(req.apiKey.id, usageObject, model, usageAccountId, 'claude')
+                .recordUsageWithDetails(
+                  req.apiKey.id,
+                  usageObject,
+                  model,
+                  usageAccountId,
+                  'claude',
+                  null,
+                  req
+                )
+                .then(() => {
+                  // 修复：流式请求的 usage 数据在响应完成后才捕获
+                  // 需要发送一个更新事件来补充缺失的字段
+                  const requestLogService = require('../services/requestLogService')
+                  const meta = req.requestLogMeta || {}
+                  requestLogService
+                    .emitFinish({
+                      requestId: req.requestId,
+                      method: req.method,
+                      endpoint: req.originalUrl,
+                      apiKeyId: req.apiKey?.id,
+                      apiKeyName: req.apiKey?.name,
+                      userId:
+                        req.apiKey?.userUsername ||
+                        req.apiKey?.userId ||
+                        req.apiKey?.createdBy ||
+                        null,
+                      accountId: meta.accountId || null,
+                      accountName: meta.accountName || null,
+                      model: meta.model || null,
+                      tokensIn: meta.tokensIn,
+                      tokensOut: meta.tokensOut,
+                      cacheCreateTokens: meta.cacheCreateTokens,
+                      cacheReadTokens: meta.cacheReadTokens,
+                      tokensTotal: meta.tokensTotal,
+                      price: meta.price ?? null,
+                      status: 200, // 流式请求成功完成
+                      durationMs: Date.now() - startTime
+                    })
+                    .catch((error) => {
+                      logger.debug('Failed to emit updated request finish event:', error.message)
+                    })
+                })
                 .catch((error) => {
                   logger.error('❌ Failed to record stream usage:', error)
                 })
@@ -317,8 +358,42 @@ async function handleMessagesRequest(req, res) {
                   usageObject,
                   model,
                   usageAccountId,
-                  'claude-console'
+                  'claude-console',
+                  null,
+                  req
                 )
+                .then(() => {
+                  // 修复：流式请求的 usage 数据在响应完成后才捕获
+                  const requestLogService = require('../services/requestLogService')
+                  const meta = req.requestLogMeta || {}
+                  requestLogService
+                    .emitFinish({
+                      requestId: req.requestId,
+                      method: req.method,
+                      endpoint: req.originalUrl,
+                      apiKeyId: req.apiKey?.id,
+                      apiKeyName: req.apiKey?.name,
+                      userId:
+                        req.apiKey?.userUsername ||
+                        req.apiKey?.userId ||
+                        req.apiKey?.createdBy ||
+                        null,
+                      accountId: meta.accountId || null,
+                      accountName: meta.accountName || null,
+                      model: meta.model || null,
+                      tokensIn: meta.tokensIn,
+                      tokensOut: meta.tokensOut,
+                      cacheCreateTokens: meta.cacheCreateTokens,
+                      cacheReadTokens: meta.cacheReadTokens,
+                      tokensTotal: meta.tokensTotal,
+                      price: meta.price ?? null,
+                      status: 200,
+                      durationMs: Date.now() - startTime
+                    })
+                    .catch((error) => {
+                      logger.debug('Failed to emit updated request finish event:', error.message)
+                    })
+                })
                 .catch((error) => {
                   logger.error('❌ Failed to record stream usage:', error)
                 })
@@ -368,7 +443,18 @@ async function handleMessagesRequest(req, res) {
             const outputTokens = result.usage.output_tokens || 0
 
             apiKeyService
-              .recordUsage(req.apiKey.id, inputTokens, outputTokens, 0, 0, result.model, accountId)
+              .recordUsage(
+                req.apiKey.id,
+                inputTokens,
+                outputTokens,
+                0,
+                0,
+                result.model,
+                accountId,
+                null,
+                null,
+                req
+              )
               .catch((error) => {
                 logger.error('❌ Failed to record Bedrock stream usage:', error)
               })
@@ -453,7 +539,47 @@ async function handleMessagesRequest(req, res) {
               }
 
               apiKeyService
-                .recordUsageWithDetails(req.apiKey.id, usageObject, model, usageAccountId, 'ccr')
+                .recordUsageWithDetails(
+                  req.apiKey.id,
+                  usageObject,
+                  model,
+                  usageAccountId,
+                  'ccr',
+                  null,
+                  req
+                )
+                .then(() => {
+                  // 修复：流式请求的 usage 数据在响应完成后才捕获
+                  const requestLogService = require('../services/requestLogService')
+                  const meta = req.requestLogMeta || {}
+                  requestLogService
+                    .emitFinish({
+                      requestId: req.requestId,
+                      method: req.method,
+                      endpoint: req.originalUrl,
+                      apiKeyId: req.apiKey?.id,
+                      apiKeyName: req.apiKey?.name,
+                      userId:
+                        req.apiKey?.userUsername ||
+                        req.apiKey?.userId ||
+                        req.apiKey?.createdBy ||
+                        null,
+                      accountId: meta.accountId || null,
+                      accountName: meta.accountName || null,
+                      model: meta.model || null,
+                      tokensIn: meta.tokensIn,
+                      tokensOut: meta.tokensOut,
+                      cacheCreateTokens: meta.cacheCreateTokens,
+                      cacheReadTokens: meta.cacheReadTokens,
+                      tokensTotal: meta.tokensTotal,
+                      price: meta.price ?? null,
+                      status: 200,
+                      durationMs: Date.now() - startTime
+                    })
+                    .catch((error) => {
+                      logger.debug('Failed to emit updated request finish event:', error.message)
+                    })
+                })
                 .catch((error) => {
                   logger.error('❌ Failed to record CCR stream usage:', error)
                 })
@@ -653,7 +779,10 @@ async function handleMessagesRequest(req, res) {
             cacheCreateTokens,
             cacheReadTokens,
             model,
-            responseAccountId
+            responseAccountId,
+            null,
+            null,
+            req
           )
 
           await queueRateLimitUpdate(

@@ -1020,10 +1020,13 @@ const corsMiddleware = (req, res, next) => {
 const requestLogger = (req, res, next) => {
   const start = Date.now()
   const requestId = Math.random().toString(36).substring(2, 15)
-  const shouldLogRequest = /^\/(api|claude|openai|droid|gemini|azure)/.test(req.path || '')
+  // 修复：排除 /apiStats 路径，只记录真正的 API Key 请求
+  // 使用负向前瞻确保不匹配 /apiStats（不区分大小写）
+  const shouldLogRequest = /^\/(?!apistats)(api|claude|openai|droid|gemini|azure)/i.test(
+    req.path || ''
+  )
   const isAdminRequestLogPoll = (req.originalUrl || '').startsWith('/admin/request-logs')
-  const shouldLogInfo =
-    req.originalUrl !== '/health' && !isAdminRequestLogPoll
+  const shouldLogInfo = req.originalUrl !== '/health' && !isAdminRequestLogPoll
 
   // 添加请求ID到请求对象
   req.requestId = requestId
@@ -1106,37 +1109,50 @@ const requestLogger = (req, res, next) => {
       meta.tokensTotal ??
       meta.totalTokens ??
       (tokensIn !== null && tokensOut !== null
-        ? tokensIn +
-          tokensOut +
-          (cacheCreateTokens || 0) +
-          (cacheReadTokens || 0)
+        ? tokensIn + tokensOut + (cacheCreateTokens || 0) + (cacheReadTokens || 0)
         : null)
 
     if (shouldLogRequest) {
-      requestLogService
-        .emitFinish({
-          requestId,
-          method: req.method,
-          endpoint: req.originalUrl,
-          apiKeyId: req.apiKey?.id,
-          apiKeyName: req.apiKey?.name,
-          userId:
-            req.apiKey?.userUsername || req.apiKey?.userId || req.apiKey?.createdBy || null,
-          accountId: meta.accountId || null,
-          accountName: meta.accountName || null,
-          model: meta.model || null,
-          tokensIn,
-          tokensOut,
-          cacheCreateTokens,
-          cacheReadTokens,
-          tokensTotal,
-          price: meta.price,
-          status: res.statusCode,
-          durationMs: duration
-        })
-        .catch((error) => {
-          logger.debug('Failed to emit request finish event:', error.message)
-        })
+      // 修复：确保所有字段都有值，即使请求失败或没有 API Key
+      // 对于失败的请求，至少记录状态码和基本信息
+      const finishEvent = {
+        requestId,
+        method: req.method,
+        endpoint: req.originalUrl,
+        apiKeyId: req.apiKey?.id || null,
+        apiKeyName: req.apiKey?.name || null,
+        userId: req.apiKey?.userUsername || req.apiKey?.userId || req.apiKey?.createdBy || null,
+        accountId: meta.accountId || null,
+        accountName: meta.accountName || null,
+        model: meta.model || null,
+        tokensIn,
+        tokensOut,
+        cacheCreateTokens,
+        cacheReadTokens,
+        tokensTotal,
+        price: meta.price ?? null,
+        status: res.statusCode,
+        durationMs: duration
+      }
+
+      // 调试日志：如果缺少关键字段，记录警告
+      // 只在有 API Key 且有 token 使用的情况下检查，避免对非使用类请求产生噪音
+      if (res.statusCode < 400 && req.apiKey && tokensTotal !== null) {
+        if (!finishEvent.model) {
+          logger.debug(
+            `⚠️ [${requestId}] Request log missing model for API Key request with usage: ${req.method} ${req.originalUrl}`
+          )
+        }
+        if (!finishEvent.accountId) {
+          logger.debug(
+            `⚠️ [${requestId}] Request log missing account for API Key request with usage: ${req.method} ${req.originalUrl}`
+          )
+        }
+      }
+
+      requestLogService.emitFinish(finishEvent).catch((error) => {
+        logger.debug('Failed to emit request finish event:', error.message)
+      })
     }
   })
 

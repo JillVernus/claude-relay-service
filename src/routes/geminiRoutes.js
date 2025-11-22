@@ -762,7 +762,10 @@ async function handleGenerateContent(req, res) {
           0, // cacheCreateTokens
           0, // cacheReadTokens
           model,
-          account.id
+          account.id,
+          null,
+          null,
+          req
         )
         logger.info(
           `📊 Recorded Gemini usage - Input: ${usage.promptTokenCount}, Output: ${usage.candidatesTokenCount}, Total: ${usage.totalTokenCount}`
@@ -1028,7 +1031,10 @@ async function handleStreamGenerateContent(req, res) {
             0, // cacheCreateTokens
             0, // cacheReadTokens
             model,
-            account.id
+            account.id,
+            null,
+            null,
+            req
           ),
           applyRateLimitTracking(
             req,
