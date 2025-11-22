@@ -86,7 +86,10 @@ class AtomicUsageReporter {
         cacheCreateTokens,
         cacheReadTokens,
         modelToRecord,
-        accountId
+        accountId,
+        null,
+        null,
+        req
       )
 
       // 同步更新 Azure 账户的 lastUsedAt 和累计使用量

@@ -38,14 +38,15 @@ const ACCOUNT_CATEGORY_MAP = {
   droid: 'droid'
 }
 
-const attachRequestLogMeta = (data) => {
-  const req = getRequest()
-  if (!req || !req.requestId) {
+const attachRequestLogMeta = (data, req = null) => {
+  // Try to get req from parameter first, fallback to AsyncLocalStorage
+  const requestObj = req || getRequest()
+  if (!requestObj || !requestObj.requestId) {
     return
   }
 
-  req.requestLogMeta = {
-    ...(req.requestLogMeta || {}),
+  requestObj.requestLogMeta = {
+    ...(requestObj.requestLogMeta || {}),
     ...data
   }
 }
@@ -1020,7 +1021,8 @@ class ApiKeyService {
     model = 'unknown',
     accountId = null,
     accountName = null,
-    accountType = null
+    accountType = null,
+    req = null
   ) {
     try {
       const totalTokens = inputTokens + outputTokens + cacheCreateTokens + cacheReadTokens
@@ -1131,7 +1133,7 @@ class ApiKeyService {
         cacheReadTokens,
         tokensTotal: totalTokens,
         price: Number(usageCost.toFixed(6))
-      })
+      }, req)
 
       const logParts = [`Model: ${model}`, `Input: ${inputTokens}`, `Output: ${outputTokens}`]
       if (cacheCreateTokens > 0) {
@@ -1184,7 +1186,8 @@ class ApiKeyService {
     model = 'unknown',
     accountId = null,
     accountType = null,
-    accountName = null
+    accountName = null,
+    req = null
   ) {
     try {
       // 提取 token 数量
@@ -1374,7 +1377,7 @@ class ApiKeyService {
         cacheReadTokens,
         tokensTotal: totalTokens,
         price: Number((costInfo.totalCost || 0).toFixed(6))
-      })
+      }, req)
 
       const logParts = [`Model: ${model}`, `Input: ${inputTokens}`, `Output: ${outputTokens}`]
       if (cacheCreateTokens > 0) {

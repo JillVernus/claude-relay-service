@@ -507,7 +507,10 @@ router.post('/v1/chat/completions', authenticateApiKey, async (req, res) => {
               0, // cacheCreateTokens
               0, // cacheReadTokens
               model,
-              account.id
+              account.id,
+              null,
+              null,
+              req
             )
             logger.info(
               `📊 Recorded Gemini stream usage - Input: ${totalUsage.promptTokenCount}, Output: ${totalUsage.candidatesTokenCount}, Total: ${totalUsage.totalTokenCount}`
@@ -588,7 +591,10 @@ router.post('/v1/chat/completions', authenticateApiKey, async (req, res) => {
             0, // cacheCreateTokens
             0, // cacheReadTokens
             model,
-            account.id
+            account.id,
+            null,
+            null,
+            req
           )
           logger.info(
             `📊 Recorded Gemini usage - Input: ${openaiResponse.usage.prompt_tokens}, Output: ${openaiResponse.usage.completion_tokens}, Total: ${openaiResponse.usage.total_tokens}`
