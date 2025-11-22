@@ -152,8 +152,8 @@ const mergeEvents = (events = []) => {
       statusClass: statusClassFor('...')
     }
 
-    // 保存 Redis Stream ID 用于排序（始终使用最新的 ID）
-    if (event.id) {
+    // 保存 Redis Stream ID 用于排序（只保留首次设置的 ID，即 start 事件的 ID）
+    if (event.id && !existing.id) {
       existing.id = event.id
     }
 
