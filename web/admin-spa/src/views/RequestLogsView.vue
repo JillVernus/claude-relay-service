@@ -36,7 +36,7 @@
             <tr
               v-for="row in sortedRows"
               :key="row.requestId"
-              class="hover:bg-gray-50/70 dark:hover:bg-gray-800/50"
+              :class="['hover:bg-gray-50/70 dark:hover:bg-gray-800/50', getFlashClass(row)]"
             >
               <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                 {{ formatTime(row.timestamp) }}
@@ -62,18 +62,36 @@
                 {{ row.model || '—' }}
               </td>
               <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
-                <div class="flex flex-col leading-tight">
-                  <span>In: {{ displayNumber(row.tokensIn) }}</span>
-                  <span>Out: {{ displayNumber(row.tokensOut) }}</span>
-                  <span
-                    v-if="row.cacheCreateTokens !== undefined && row.cacheCreateTokens !== null"
-                  >
-                    Cache+: {{ displayNumber(row.cacheCreateTokens) }}
+                <div class="flex flex-col font-mono text-xs leading-relaxed">
+                  <span>
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
+                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-green-600 dark:text-green-400"
+                      >↑{{ displayNumber(row.tokensIn) }}</span
+                    >
+                    <span class="text-gray-400">/</span>
+                    <span class="text-blue-600 dark:text-blue-400"
+                      >↓{{ displayNumber(row.tokensOut) }}</span
+                    >
                   </span>
-                  <span v-if="row.cacheReadTokens !== undefined && row.cacheReadTokens !== null">
-                    Cache Hit: {{ displayNumber(row.cacheReadTokens) }}
+                  <span v-if="hasCache(row)">
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Cache</span>
+                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-green-600 dark:text-green-400"
+                      >↑{{ displayNumber(row.cacheCreateTokens) }}</span
+                    >
+                    <span class="text-gray-400">/</span>
+                    <span class="text-amber-600 dark:text-amber-400"
+                      >⚡{{ displayNumber(row.cacheReadTokens) }}</span
+                    >
                   </span>
-                  <span>Total: {{ displayNumber(row.tokensTotal) }}</span>
+                  <span>
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Total</span>
+                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-purple-600 dark:text-purple-400">{{
+                      displayNumber(row.tokensTotal)
+                    }}</span>
+                  </span>
                 </div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
@@ -112,7 +130,7 @@ const headers = [
   'API Key',
   '账户',
   '模型',
-  'Tokens (In/Out/Total)',
+  'Tokens',
   '价格',
   '状态',
   '耗时'
@@ -146,63 +164,97 @@ const mergeEvents = (events = []) => {
       return
     }
 
-    const existing = map.get(reqId) || {
+    const existing = map.get(reqId)
+    const isNewRequest = !existing
+
+    const row = existing || {
       requestId: reqId,
       statusDisplay: '...',
       statusClass: statusClassFor('...')
     }
 
     // 保存 Redis Stream ID 用于排序（只保留首次设置的 ID，即 start 事件的 ID）
-    if (event.id && !existing.id) {
-      existing.id = event.id
+    if (event.id && !row.id) {
+      row.id = event.id
     }
 
-    if (event.method) existing.method = event.method
-    if (event.endpoint) existing.endpoint = event.endpoint
-    if (event.timestamp && !existing.timestamp) existing.timestamp = event.timestamp
-    if (event.apiKeyName) existing.apiKeyName = event.apiKeyName
-    if (event.apiKeyId) existing.apiKeyId = event.apiKeyId
-    if (event.userId) existing.userId = event.userId
-    if (event.accountId) existing.accountId = event.accountId
-    if (event.accountName) existing.accountName = event.accountName
-    if (event.model) existing.model = event.model
+    if (event.method) row.method = event.method
+    if (event.endpoint) row.endpoint = event.endpoint
+    if (event.timestamp && !row.timestamp) row.timestamp = event.timestamp
+    if (event.apiKeyName) row.apiKeyName = event.apiKeyName
+    if (event.apiKeyId) row.apiKeyId = event.apiKeyId
+    if (event.userId) row.userId = event.userId
+    if (event.accountId) row.accountId = event.accountId
+    if (event.accountName) row.accountName = event.accountName
+    if (event.model) row.model = event.model
 
     if (event.phase === 'start') {
-      existing.statusDisplay = '...'
-      existing.statusClass = statusClassFor('...')
+      row.statusDisplay = '...'
+      row.statusClass = statusClassFor('...')
+
+      // Flash effect: New request detected
+      if (isNewRequest) {
+        row._flashState = 'new'
+        row._flashTimestamp = Date.now()
+
+        // Auto-clear flash after 2 seconds
+        setTimeout(() => {
+          const currentRow = rows.value.find((r) => r.requestId === reqId)
+          if (currentRow && currentRow._flashState === 'new') {
+            currentRow._flashState = 'none'
+          }
+        }, 2000)
+      }
     } else {
+      // Check if request is completing (pending -> finished)
+      const wasIncomplete = existing && existing.statusDisplay === '...'
+
       if (event.status !== undefined && event.status !== null) {
-        existing.status = event.status
-        existing.statusDisplay = event.status
-        existing.statusClass = statusClassFor(event.status)
+        row.status = event.status
+        row.statusDisplay = event.status
+        row.statusClass = statusClassFor(event.status)
+
+        // Flash effect: Request completed
+        if (wasIncomplete) {
+          row._flashState = 'updated'
+          row._flashTimestamp = Date.now()
+
+          // Auto-clear flash after 2 seconds
+          setTimeout(() => {
+            const currentRow = rows.value.find((r) => r.requestId === reqId)
+            if (currentRow && currentRow._flashState === 'updated') {
+              currentRow._flashState = 'none'
+            }
+          }, 2000)
+        }
       }
       if (event.durationMs !== undefined && event.durationMs !== null) {
-        existing.durationMs = event.durationMs
+        row.durationMs = event.durationMs
       }
       if (event.tokensIn !== undefined && event.tokensIn !== null) {
-        existing.tokensIn = event.tokensIn
+        row.tokensIn = event.tokensIn
       }
       if (event.tokensOut !== undefined && event.tokensOut !== null) {
-        existing.tokensOut = event.tokensOut
+        row.tokensOut = event.tokensOut
       }
       if (event.cacheCreateTokens !== undefined && event.cacheCreateTokens !== null) {
-        existing.cacheCreateTokens = event.cacheCreateTokens
+        row.cacheCreateTokens = event.cacheCreateTokens
       }
       if (event.cacheReadTokens !== undefined && event.cacheReadTokens !== null) {
-        existing.cacheReadTokens = event.cacheReadTokens
+        row.cacheReadTokens = event.cacheReadTokens
       }
       if (event.tokensTotal !== undefined && event.tokensTotal !== null) {
-        existing.tokensTotal = event.tokensTotal
+        row.tokensTotal = event.tokensTotal
       }
       if (event.price !== undefined && event.price !== null) {
-        existing.price = event.price
+        row.price = event.price
       }
       if (event.timestamp) {
-        existing.completedAt = event.timestamp
+        row.completedAt = event.timestamp
       }
     }
 
-    map.set(reqId, existing)
+    map.set(reqId, row)
   })
 
   rows.value = Array.from(map.values())
@@ -280,6 +332,26 @@ const displayNumber = (value) => {
   return value
 }
 
+const hasCache = (row) => {
+  return (
+    (row.cacheCreateTokens !== undefined && row.cacheCreateTokens !== null) ||
+    (row.cacheReadTokens !== undefined && row.cacheReadTokens !== null)
+  )
+}
+
+const getFlashClass = (row) => {
+  if (!row._flashState || row._flashState === 'none') {
+    return ''
+  }
+  if (row._flashState === 'new') {
+    return 'flash-new'
+  }
+  if (row._flashState === 'updated') {
+    return 'flash-updated'
+  }
+  return ''
+}
+
 onMounted(() => {
   fetchLogs(true)
   timer = setInterval(fetchLogs, refreshInterval)
@@ -291,3 +363,60 @@ onBeforeUnmount(() => {
   }
 })
 </script>
+
+<style scoped>
+/* Flash effect for new requests - Blue */
+@keyframes flash-new {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-new {
+  animation: flash-new 2s ease-out;
+}
+
+/* Flash effect for completed requests - Green */
+@keyframes flash-updated {
+  0% {
+    background-color: rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-updated {
+  animation: flash-updated 2s ease-out;
+}
+
+/* Dark mode variants */
+:global(.dark) .flash-new {
+  animation: flash-new-dark 2s ease-out;
+}
+
+:global(.dark) .flash-updated {
+  animation: flash-updated-dark 2s ease-out;
+}
+
+@keyframes flash-new-dark {
+  0% {
+    background-color: rgba(59, 130, 246, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-updated-dark {
+  0% {
+    background-color: rgba(34, 197, 94, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+</style>

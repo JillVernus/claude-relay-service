@@ -4,6 +4,79 @@ All notable changes to Claude Relay Service will be documented in this file.
 
 ---
 
+## [jill-v1.05] - 2025-11-22
+
+### Enhanced: Request Log UI Improvements
+
+#### 1. Flash Effects for Real-time Updates (Stock Trading Style)
+
+Added visual flash effects when request logs update, similar to stock trading platforms:
+
+- **New requests**: Row flashes **blue** for 2 seconds when a request first appears
+- **Completed requests**: Row flashes **green** for 2 seconds when status changes from pending to completed
+
+**Implementation Details:**
+- Added `_flashState` and `_flashTimestamp` tracking properties to row objects
+- CSS keyframe animations with smooth 2-second fade-out effect
+- Dark mode compatible with adjusted opacity (0.25 vs 0.3)
+- Auto-cleanup: Flash state automatically clears after animation completes
+
+**Colors:**
+| Event | Color | RGB |
+|-------|-------|-----|
+| New request | Blue | rgba(59, 130, 246, 0.3) |
+| Completed | Green | rgba(34, 197, 94, 0.3) |
+
+#### 2. Compact Token Display Layout
+
+Reduced token field from 5 lines to 2-3 lines with improved readability:
+
+**Before (5 lines max):**
+```
+In: 1000
+Out: 500
+Cache+: 200
+Cache Hit: 100
+Total: 1800
+```
+
+**After (2-3 lines max):**
+```
+In/Out : ↑1000/↓500
+Cache  : ↑200/⚡100    ← only shown when cache exists
+Total  : 1800
+```
+
+**Features:**
+- Fixed-width labels (`w-12`) for aligned ":" separator
+- Monospace font (`font-mono`) for consistent number alignment
+- Cache line only appears when cache values exist
+- Smaller font size (`text-xs` = 12px) for compact display
+
+#### 3. Token Type Symbols with Semantic Colors
+
+Added visual symbols and colors for different token types:
+
+| Token Type | Symbol | Color | Meaning |
+|------------|--------|-------|---------|
+| Input | ↑ | Green (`text-green-600`) | Tokens sent up (input) |
+| Output | ↓ | Blue (`text-blue-600`) | Tokens received (output) |
+| Cache Create | ↑ | Green (`text-green-600`) | Cache write |
+| Cache Hit | ⚡ | Amber (`text-amber-600`) | Fast retrieval from cache |
+| Total | — | Purple (`text-purple-600`) | Consistent with project styling |
+
+#### Files Changed
+
+- `web/admin-spa/src/views/RequestLogsView.vue`
+  - Added flash state tracking in `mergeEvents()` function
+  - Added `getFlashClass()` helper function
+  - Added `hasCache()` helper function
+  - Updated token display template with new compact layout
+  - Added CSS keyframe animations for flash effects
+  - Updated table header from "Tokens (In/Out/Total)" to "Tokens"
+
+---
+
 ## [jill-v1.04f] - 2025-11-22
 
 ### Fixed: Request Log Sorting - Preserve Start Event Redis Stream ID
