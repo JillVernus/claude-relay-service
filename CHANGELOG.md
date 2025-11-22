@@ -4,6 +4,73 @@ All notable changes to Claude Relay Service will be documented in this file.
 
 ---
 
+## [jill-v1.04f] - 2025-11-22
+
+### Fixed: Request Log Sorting - Preserve Start Event Redis Stream ID
+
+#### Problem
+
+When multiple requests arrived in the same second and completed at different times, the request log would not re-sort correctly until ALL requests completed. Even with frequent polling, individual request completions didn't trigger proper re-sorting.
+
+**Example:**
+- Request A starts at 10:00:00.100 (Redis Stream ID: `1732233456100-0`)
+- Request B starts at 10:00:00.200 (Redis Stream ID: `1732233456200-0`)
+- Request A completes at 10:00:01.500 (finish event ID: `1732233457500-0`)
+- Request B completes at 10:00:03.800 (finish event ID: `1732233459800-0`)
+
+After Request A completed, it would jump to the top of the list (newer finish ID), breaking chronological order.
+
+#### Root Cause
+
+**Redis Stream ID Overwriting Issue:**
+
+The backend creates **separate Redis Stream entries** for start and finish events:
+- `emitStart()` creates entry with ID based on arrival time
+- `emitFinish()` creates NEW entry with ID based on completion time
+
+The frontend `mergeEvents()` function (line 156-158) was **overwriting** the start event ID with the finish event ID:
+
+```javascript
+// OLD: Always overwrites with latest event ID
+if (event.id) {
+  existing.id = event.id  // ❌ Replaces arrival time with completion time
+}
+```
+
+This caused requests to be sorted by **completion time** instead of **arrival time**, breaking chronological order.
+
+#### Solution
+
+**Preserve the start event Redis Stream ID:**
+
+```javascript
+// NEW: Only set ID once (from start event)
+if (event.id && !existing.id) {
+  existing.id = event.id  // ✅ Preserves arrival time
+}
+```
+
+Now the Redis Stream ID is set from the first event (start) and never changed by subsequent events (finish), ensuring consistent chronological ordering.
+
+**Benefits:**
+- ✅ Requests stay in correct chronological order (by arrival time)
+- ✅ Re-sorting happens correctly after each individual request completes
+- ✅ No visual "jumping" when requests complete at different times
+- ✅ Consistent with the design principle: sort by when request started, not when it finished
+
+#### Files Changed
+
+- `web/admin-spa/src/views/RequestLogsView.vue` (line 156-157) - Added `!existing.id` check to preserve start event ID
+
+#### Verification
+
+1. Send 3-4 requests rapidly (within same second)
+2. Observe request log page as they complete at different times
+3. Verify: Requests maintain chronological order by arrival time
+4. Verify: No visual jumping or re-ordering when individual requests complete
+
+---
+
 ## [jill-v1.04e] - 2025-11-21
 
 ### Fixed: Request Log Ordering - Redis Stream ID as Primary Sort Key
