@@ -10,7 +10,10 @@ export const APP_CONFIG = {
   isDev: import.meta.env.DEV,
 
   // API 前缀
-  apiPrefix: import.meta.env.DEV ? '/webapi' : ''
+  apiPrefix: import.meta.env.DEV ? '/webapi' : '',
+
+  // 请求日志功能版本
+  requestLogVersion: 'jill-v1.06'
 }
 
 // 获取完整的应用URL

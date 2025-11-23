@@ -4,6 +4,51 @@ All notable changes to Claude Relay Service will be documented in this file.
 
 ---
 
+## [jill-v1.06] - 2025-11-23
+
+### Added: Feature Version Display in Request Logs
+
+Added feature version number display to the Request Logs page title.
+
+#### Implementation
+
+**Display Format:**
+```
+请求日志 (ver.jill-v1.06)
+```
+
+The version appears next to the "请求日志" title in smaller, lighter text that's compatible with both light and dark modes.
+
+**Configuration Location:**
+- Version is centrally managed in `web/admin-spa/src/config/app.js`
+- Add new property `requestLogVersion` to `APP_CONFIG` object
+
+**How to Update Version:**
+
+1. Edit `web/admin-spa/src/config/app.js`
+2. Modify the `requestLogVersion` value:
+   ```javascript
+   export const APP_CONFIG = {
+     // ... other config
+     requestLogVersion: 'jill-vX.YY'  // Update this value
+   }
+   ```
+3. Rebuild frontend: `npm run build:web` (if deploying)
+
+#### Files Changed
+
+- `web/admin-spa/src/config/app.js` - Added `requestLogVersion: 'jill-v1.06'` to APP_CONFIG
+- `web/admin-spa/src/views/RequestLogsView.vue` - Updated title template to display version from config
+
+#### Benefits
+
+- ✅ Easy version tracking for request log feature releases
+- ✅ Centralized version management (single source of truth)
+- ✅ No hardcoding - version can be updated without touching Vue components
+- ✅ Dark mode compatible styling
+
+---
+
 ## [jill-v1.05] - 2025-11-22
 
 ### Enhanced: Request Log UI Improvements

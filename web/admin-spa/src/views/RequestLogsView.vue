@@ -2,7 +2,12 @@
   <div class="space-y-4">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">请求日志</h1>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
+          请求日志
+          <span class="text-sm font-normal text-gray-500 dark:text-gray-400"
+            >(ver.{{ APP_CONFIG.requestLogVersion }})</span
+          >
+        </h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">
           仅展示 API Key 请求，自动刷新（{{ refreshInterval / 1000 }}s），最新请求在最上方
         </p>
@@ -121,6 +126,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { apiClient } from '@/config/api'
+import { APP_CONFIG } from '@/config/app'
 
 const headers = [
   '时间',
