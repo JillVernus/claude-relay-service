@@ -65,29 +65,29 @@
                 <div class="flex flex-col font-mono text-xs leading-relaxed">
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
-                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
                     <span class="text-green-600 dark:text-green-400"
-                      >↑{{ displayNumber(row.tokensIn) }}</span
+                      >{{ displayNumber(row.tokensIn) }} (↑)</span
                     >
-                    <span class="text-gray-400">/</span>
+                    <span class="text-gray-400"> / </span>
                     <span class="text-blue-600 dark:text-blue-400"
-                      >↓{{ displayNumber(row.tokensOut) }}</span
+                      >{{ displayNumber(row.tokensOut) }} (↓)</span
                     >
                   </span>
                   <span v-if="hasCache(row)">
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Cache</span>
-                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
                     <span class="text-green-600 dark:text-green-400"
-                      >↑{{ displayNumber(row.cacheCreateTokens) }}</span
+                      >{{ displayNumber(row.cacheCreateTokens) }} (↑)</span
                     >
-                    <span class="text-gray-400">/</span>
+                    <span class="text-gray-400"> / </span>
                     <span class="text-amber-600 dark:text-amber-400"
-                      >⚡{{ displayNumber(row.cacheReadTokens) }}</span
+                      >{{ displayNumber(row.cacheReadTokens) }} (⚡)</span
                     >
                   </span>
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Total</span>
-                    <span class="text-gray-400 dark:text-gray-500">:</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
                     <span class="text-purple-600 dark:text-purple-400">{{
                       displayNumber(row.tokensTotal)
                     }}</span>

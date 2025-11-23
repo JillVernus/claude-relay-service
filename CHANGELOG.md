@@ -65,6 +65,30 @@ Added visual symbols and colors for different token types:
 | Cache Hit | ⚡ | Amber (`text-amber-600`) | Fast retrieval from cache |
 | Total | — | Purple (`text-purple-600`) | Consistent with project styling |
 
+#### 4. Improved Token Display Format
+
+Enhanced readability with better spacing and bracket notation for symbols:
+
+**Before:**
+```
+In/Out:↑8/↓139
+Cache :↑5/⚡10
+Total :1800
+```
+
+**After:**
+```
+In/Out: 8 (↑) / 139 (↓)
+Cache : 5 (↑) / 10 (⚡)
+Total : 1800
+```
+
+**Changes:**
+- Added space after colon separator
+- Moved symbols into brackets after numbers
+- Added spaces around "/" separator
+- Clearer visual hierarchy with number-first display
+
 #### Files Changed
 
 - `web/admin-spa/src/views/RequestLogsView.vue`
