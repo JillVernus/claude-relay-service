@@ -38,10 +38,10 @@
               :key="row.requestId"
               :class="['hover:bg-gray-50/70 dark:hover:bg-gray-800/50', getFlashClass(row)]"
             >
-              <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+              <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-900 dark:text-gray-100">
                 {{ formatTime(row.timestamp) }}
               </td>
-              <td class="px-4 py-3 font-mono text-sm text-gray-700 dark:text-gray-100">
+              <td class="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-100">
                 {{ row.requestId }}
               </td>
               <td
@@ -49,19 +49,19 @@
               >
                 {{ row.method || '—' }}
               </td>
-              <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+              <td class="px-4 py-3 text-xs text-gray-800 dark:text-gray-200">
                 {{ row.endpoint }}
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
                 {{ row.apiKeyName || row.apiKeyId || '—' }}
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
                 {{ row.accountName || row.accountId || '—' }}
               </td>
-              <td class="px-4 py-3 text-sm text-gray-800 dark:text-gray-100">
+              <td class="px-4 py-3 text-xs text-gray-800 dark:text-gray-100">
                 {{ row.model || '—' }}
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
+              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
                 <div class="flex flex-col font-mono text-xs leading-relaxed">
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
@@ -94,10 +94,10 @@
                   </span>
                 </div>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
+              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
                 {{ formatPrice(row.price) }}
               </td>
-              <td class="px-4 py-3 text-sm">
+              <td class="px-4 py-3 text-xs">
                 <span
                   :class="[
                     'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
@@ -107,7 +107,7 @@
                   {{ row.statusDisplay }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100">
+              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
                 {{ row.durationMs ? `${row.durationMs} ms` : '…' }}
               </td>
             </tr>

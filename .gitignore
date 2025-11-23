@@ -248,3 +248,4 @@ web/apiStats/
 web/admin-spa/dist/
 
 CHANGELOG.md
+get_upstream_patch_git_steps.md
