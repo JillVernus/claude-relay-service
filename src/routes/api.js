@@ -48,6 +48,7 @@ async function handleMessagesRequest(req, res) {
       req.apiKey.permissions !== 'all' &&
       req.apiKey.permissions !== 'claude'
     ) {
+      req.errorMessage = '此 API Key 无权访问 Claude 服务'
       return res.status(403).json({
         error: {
           type: 'permission_error',
@@ -63,6 +64,7 @@ async function handleMessagesRequest(req, res) {
 
     // 严格的输入验证
     if (!req.body || typeof req.body !== 'object') {
+      req.errorMessage = 'Request body must be a valid JSON object'
       return res.status(400).json({
         error: 'Invalid request',
         message: 'Request body must be a valid JSON object'
@@ -70,6 +72,7 @@ async function handleMessagesRequest(req, res) {
     }
 
     if (!req.body.messages || !Array.isArray(req.body.messages)) {
+      req.errorMessage = 'Missing or invalid field: messages (must be an array)'
       return res.status(400).json({
         error: 'Invalid request',
         message: 'Missing or invalid field: messages (must be an array)'
@@ -77,6 +80,7 @@ async function handleMessagesRequest(req, res) {
     }
 
     if (req.body.messages.length === 0) {
+      req.errorMessage = 'Messages array cannot be empty'
       return res.status(400).json({
         error: 'Invalid request',
         message: 'Messages array cannot be empty'
@@ -91,6 +95,7 @@ async function handleMessagesRequest(req, res) {
     ) {
       const effectiveModel = getEffectiveModel(req.body.model || '')
       if (req.apiKey.restrictedModels.includes(effectiveModel)) {
+        req.errorMessage = '暂无该模型访问权限'
         return res.status(403).json({
           error: {
             type: 'forbidden',
@@ -157,6 +162,7 @@ async function handleMessagesRequest(req, res) {
           const limitMessage = claudeRelayService._buildStandardRateLimitMessage(
             error.rateLimitEndAt
           )
+          req.errorMessage = limitMessage
           res.status(403)
           res.setHeader('Content-Type', 'application/json')
           res.end(
@@ -479,6 +485,7 @@ async function handleMessagesRequest(req, res) {
         } catch (error) {
           logger.error('❌ Bedrock stream request failed:', error)
           if (!res.headersSent) {
+            req.errorMessage = error.message || 'Bedrock service error'
             return res.status(500).json({ error: 'Bedrock service error', message: error.message })
           }
           return undefined
@@ -645,6 +652,7 @@ async function handleMessagesRequest(req, res) {
           const limitMessage = claudeRelayService._buildStandardRateLimitMessage(
             error.rateLimitEndAt
           )
+          req.errorMessage = limitMessage
           return res.status(403).json({
             error: 'upstream_rate_limited',
             message: limitMessage
@@ -711,6 +719,7 @@ async function handleMessagesRequest(req, res) {
           }
         } catch (error) {
           logger.error('❌ Bedrock non-stream request failed:', error)
+          req.errorMessage = error.message || 'Bedrock service error'
           response = {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
@@ -752,6 +761,10 @@ async function handleMessagesRequest(req, res) {
       // 尝试解析JSON响应并提取usage信息
       try {
         const jsonData = JSON.parse(response.body)
+        if (response.statusCode >= 400) {
+          req.errorMessage =
+            jsonData?.error?.message || jsonData?.error || jsonData?.message || 'Upstream error'
+        }
 
         logger.info('📊 Parsed Claude API response:', JSON.stringify(jsonData, null, 2))
 
@@ -809,6 +822,7 @@ async function handleMessagesRequest(req, res) {
       } catch (parseError) {
         logger.warn('⚠️ Failed to parse Claude API response as JSON:', parseError.message)
         logger.info('📄 Raw response body:', response.body)
+        req.errorMessage = parseError.message || 'Failed to parse Claude API response'
         res.send(response.body)
       }
 
@@ -851,6 +865,9 @@ async function handleMessagesRequest(req, res) {
           // 重试失败
           if (retryError.code === 'CONSOLE_ACCOUNT_CONCURRENCY_FULL') {
             logger.error('❌ All Console accounts reached concurrency limit after retry')
+            req.errorMessage =
+              retryError.message ||
+              'All available Claude Console accounts have reached their concurrency limit. Please try again later.'
             return res.status(503).json({
               error: 'service_unavailable',
               message:
@@ -877,6 +894,9 @@ async function handleMessagesRequest(req, res) {
     ) {
       logger.error('❌ All Console accounts reached concurrency limit (retry already attempted)')
       if (!res.headersSent) {
+        req.errorMessage =
+          handledError.message ||
+          'All available Claude Console accounts have reached their concurrency limit. Please try again later.'
         return res.status(503).json({
           error: 'service_unavailable',
           message:
@@ -921,6 +941,7 @@ async function handleMessagesRequest(req, res) {
         errorType = 'Upstream hostname resolution failed'
       }
 
+      req.errorMessage = handledError.message || errorType
       return res.status(statusCode).json({
         error: errorType,
         message: handledError.message || 'An unexpected error occurred',
@@ -962,6 +983,7 @@ router.get('/v1/models', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Models list error:', error)
+    req.errorMessage = error.message || 'Failed to get models list'
     res.status(500).json({
       error: 'Failed to get models list',
       message: error.message
@@ -973,6 +995,9 @@ router.get('/v1/models', authenticateApiKey, async (req, res) => {
 router.get('/health', async (req, res) => {
   try {
     const healthStatus = await claudeRelayService.healthCheck()
+    if (!healthStatus.healthy) {
+      req.errorMessage = healthStatus.message || 'Service unhealthy'
+    }
 
     res.status(healthStatus.healthy ? 200 : 503).json({
       status: healthStatus.healthy ? 'healthy' : 'unhealthy',
@@ -982,6 +1007,7 @@ router.get('/health', async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Health check error:', error)
+    req.errorMessage = error.message || 'Health check error'
     res.status(503).json({
       status: 'unhealthy',
       service: 'claude-relay-service',
@@ -1007,6 +1033,7 @@ router.get('/v1/key-info', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Key info error:', error)
+    req.errorMessage = error.message || 'Failed to get key info'
     res.status(500).json({
       error: 'Failed to get key info',
       message: error.message
@@ -1029,6 +1056,7 @@ router.get('/v1/usage', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ Usage stats error:', error)
+    req.errorMessage = error.message || 'Failed to get usage stats'
     res.status(500).json({
       error: 'Failed to get usage stats',
       message: error.message
@@ -1048,6 +1076,7 @@ router.get('/v1/me', authenticateApiKey, async (req, res) => {
     })
   } catch (error) {
     logger.error('❌ User info error:', error)
+    req.errorMessage = error.message || 'Failed to get user info'
     res.status(500).json({
       error: 'Failed to get user info',
       message: error.message
@@ -1071,6 +1100,7 @@ router.get('/v1/organizations/:org_id/usage', authenticateApiKey, async (req, re
     })
   } catch (error) {
     logger.error('❌ Organization usage error:', error)
+    req.errorMessage = error.message || 'Failed to get usage info'
     res.status(500).json({
       error: 'Failed to get usage info',
       message: error.message
@@ -1086,6 +1116,7 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
     req.apiKey.permissions !== 'all' &&
     req.apiKey.permissions !== 'claude'
   ) {
+    req.errorMessage = 'This API key does not have permission to access Claude'
     return res.status(403).json({
       error: {
         type: 'permission_error',
@@ -1170,11 +1201,17 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
       const jsonData = JSON.parse(response.body)
       if (response.statusCode < 200 || response.statusCode >= 300) {
         const sanitizedData = sanitizeUpstreamError(jsonData)
+        req.errorMessage =
+          sanitizedData?.message ||
+          sanitizedData?.error?.message ||
+          sanitizedData?.error?.type ||
+          'Upstream error'
         res.json(sanitizedData)
       } else {
         res.json(jsonData)
       }
     } catch (parseError) {
+      req.errorMessage = parseError.message || 'Failed to parse upstream response'
       res.send(response.body)
     }
 
@@ -1196,6 +1233,7 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
           } catch (clearError) {
             logger.error('❌ Failed to clear session mapping for count_tokens retry:', clearError)
             if (!res.headersSent) {
+              req.errorMessage = clearError.message || 'Failed to count tokens'
               return res.status(500).json({
                 error: {
                   type: 'server_error',
@@ -1212,6 +1250,9 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
           continue
         }
         if (!res.headersSent) {
+          req.errorMessage =
+            error.message ||
+            'All available Claude Console accounts have reached their concurrency limit. Please try again later.'
           return res.status(503).json({
             error: 'service_unavailable',
             message:
@@ -1225,6 +1266,11 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
       }
 
       if (error.httpStatus) {
+        req.errorMessage =
+          error.message ||
+          error.errorPayload?.error?.message ||
+          error.errorPayload?.message ||
+          'Token counting error'
         return res.status(error.httpStatus).json(error.errorPayload)
       }
 
@@ -1232,6 +1278,7 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
       if (error.message === 'Client disconnected') {
         logger.info('🔌 Client disconnected during token count request')
         if (!res.headersSent) {
+          req.errorMessage = 'Client disconnected'
           return res.status(499).end() // 499 Client Closed Request
         }
         if (!res.destroyed && !res.finished) {
@@ -1242,6 +1289,7 @@ router.post('/v1/messages/count_tokens', authenticateApiKey, async (req, res) =>
 
       logger.error('❌ Token count error:', error)
       if (!res.headersSent) {
+        req.errorMessage = error.message || 'Failed to count tokens'
         return res.status(500).json({
           error: {
             type: 'server_error',

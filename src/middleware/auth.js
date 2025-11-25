@@ -1132,6 +1132,7 @@ const requestLogger = (req, res, next) => {
         tokensTotal,
         price: meta.price ?? null,
         status: res.statusCode,
+        errorMessage: res.statusCode >= 400 ? req.errorMessage || meta.errorMessage || null : null,
         durationMs: duration
       }
 

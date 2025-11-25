@@ -103,7 +103,23 @@
                 {{ formatPrice(row.price) }}
               </td>
               <td class="px-4 py-3 text-xs">
+                <el-tooltip
+                  v-if="row.errorMessage && Number(row.status) >= 400"
+                  :content="row.errorMessage"
+                  effect="dark"
+                  placement="top"
+                >
+                  <span
+                    :class="[
+                      'inline-flex cursor-help items-center rounded-full px-2 py-1 text-xs font-semibold',
+                      row.statusClass
+                    ]"
+                  >
+                    {{ row.statusDisplay }}
+                  </span>
+                </el-tooltip>
                 <span
+                  v-else
                   :class="[
                     'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold',
                     row.statusClass
@@ -190,9 +206,10 @@ const mergeEvents = (events = []) => {
     if (event.apiKeyName) row.apiKeyName = event.apiKeyName
     if (event.apiKeyId) row.apiKeyId = event.apiKeyId
     if (event.userId) row.userId = event.userId
-    if (event.accountId) row.accountId = event.accountId
-    if (event.accountName) row.accountName = event.accountName
-    if (event.model) row.model = event.model
+    // Only update if new value exists and current value is null/undefined
+    if (event.accountId && !row.accountId) row.accountId = event.accountId
+    if (event.accountName && !row.accountName) row.accountName = event.accountName
+    if (event.model && !row.model) row.model = event.model
 
     if (event.phase === 'start') {
       row.statusDisplay = '...'
@@ -237,23 +254,53 @@ const mergeEvents = (events = []) => {
       if (event.durationMs !== undefined && event.durationMs !== null) {
         row.durationMs = event.durationMs
       }
-      if (event.tokensIn !== undefined && event.tokensIn !== null) {
+      // Only update if new value is not null/undefined (prefer existing non-null values)
+      // This prevents the first finish event (with null values) from overwriting
+      // the second finish event (with actual usage data)
+      if (
+        event.tokensIn !== undefined &&
+        event.tokensIn !== null &&
+        (row.tokensIn === undefined || row.tokensIn === null)
+      ) {
         row.tokensIn = event.tokensIn
       }
-      if (event.tokensOut !== undefined && event.tokensOut !== null) {
+      if (
+        event.tokensOut !== undefined &&
+        event.tokensOut !== null &&
+        (row.tokensOut === undefined || row.tokensOut === null)
+      ) {
         row.tokensOut = event.tokensOut
       }
-      if (event.cacheCreateTokens !== undefined && event.cacheCreateTokens !== null) {
+      if (
+        event.cacheCreateTokens !== undefined &&
+        event.cacheCreateTokens !== null &&
+        (row.cacheCreateTokens === undefined || row.cacheCreateTokens === null)
+      ) {
         row.cacheCreateTokens = event.cacheCreateTokens
       }
-      if (event.cacheReadTokens !== undefined && event.cacheReadTokens !== null) {
+      if (
+        event.cacheReadTokens !== undefined &&
+        event.cacheReadTokens !== null &&
+        (row.cacheReadTokens === undefined || row.cacheReadTokens === null)
+      ) {
         row.cacheReadTokens = event.cacheReadTokens
       }
-      if (event.tokensTotal !== undefined && event.tokensTotal !== null) {
+      if (
+        event.tokensTotal !== undefined &&
+        event.tokensTotal !== null &&
+        (row.tokensTotal === undefined || row.tokensTotal === null)
+      ) {
         row.tokensTotal = event.tokensTotal
       }
-      if (event.price !== undefined && event.price !== null) {
+      if (
+        event.price !== undefined &&
+        event.price !== null &&
+        (row.price === undefined || row.price === null)
+      ) {
         row.price = event.price
+      }
+      if (event.errorMessage) {
+        row.errorMessage = event.errorMessage
       }
       if (event.timestamp) {
         row.completedAt = event.timestamp

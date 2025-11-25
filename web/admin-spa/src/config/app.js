@@ -13,7 +13,7 @@ export const APP_CONFIG = {
   apiPrefix: import.meta.env.DEV ? '/webapi' : '',
 
   // 请求日志功能版本
-  requestLogVersion: 'jill-v1.06'
+  requestLogVersion: 'jill-v1.07'
 }
 
 // 获取完整的应用URL
