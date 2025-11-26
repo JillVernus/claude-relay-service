@@ -9949,6 +9949,8 @@ router.get('/request-logs', authenticateAdmin, async (req, res) => {
       cacheReadTokens: toNumber(event.cacheReadTokens),
       tokensTotal: toNumber(event.tokensTotal),
       price: toNumber(event.price),
+      // 将后端收集的详细错误信息返回给前端用于状态码悬浮提示
+      errorMessage: event.errorMessage || null,
       status: toNumber(event.status) ?? event.status,
       durationMs: toNumber(event.durationMs)
     }))
