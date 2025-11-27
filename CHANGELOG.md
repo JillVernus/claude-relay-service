@@ -4,6 +4,45 @@ All notable changes to Claude Relay Service will be documented in this file.
 
 ---
 
+## [jill-v1.08] - 2025-11-27
+
+### Added: Token Usage Statistics to Request Logs
+
+**New Features:**
+
+1. **Token 使用分布 (Token Usage Distribution)** - Visual pie chart showing token usage distribution across different models
+
+   - Color-coded chart with automatic theme adaptation (light/dark mode)
+   - Smart number formatting (K/M suffixes)
+   - Responsive design
+
+2. **详细统计数据 (Detailed Statistics Table)** - Comprehensive statistics table displaying:
+   - Model name
+   - Request count
+   - Total tokens consumed
+   - Cost breakdown
+   - Usage percentage
+
+**Behavior:**
+
+- Displays today's data (based on system timezone UTC+8)
+- Auto-refreshes every 30 seconds with countdown indicator
+- Located at the top of Request Logs page
+- Grid layout: 2 columns on desktop, 1 column on mobile
+
+**Components Added:**
+
+- `web/admin-spa/src/components/common/TokenDistributionChart.vue` - Pie chart visualization
+- `web/admin-spa/src/components/common/DetailedStatsTable.vue` - Statistics table
+
+**Files Changed:**
+
+- `web/admin-spa/src/views/RequestLogsView.vue` - Added statistics section with auto-refresh logic
+- `web/admin-spa/src/stores/dashboard.js` - Added `loadRequestLogsModelStats()` function for today's data
+- Fixed ESLint/Prettier errors to enable Docker build
+
+---
+
 ## [jill-v1.07] - 2025-11-25
 
 ### Added: Error Message Tooltip for Failed Requests

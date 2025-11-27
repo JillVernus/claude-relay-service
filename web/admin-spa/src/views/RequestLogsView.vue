@@ -23,6 +23,25 @@
       </div>
     </div>
 
+    <!-- Statistics Section -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-lg">
+          Token使用统计 (今日)
+        </h3>
+        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+          <span v-if="statsCountdown > 0">{{ statsCountdown }}秒后刷新统计</span>
+          <span v-else-if="statsLoading">统计加载中...</span>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+        <TokenDistributionChart height="175px" :model-stats="requestLogsModelStats" />
+        <DetailedStatsTable :model-stats="requestLogsModelStats" />
+      </div>
+    </div>
+
     <div class="overflow-hidden rounded-2xl bg-white shadow dark:bg-gray-900">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
@@ -141,8 +160,17 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { apiClient } from '@/config/api'
 import { APP_CONFIG } from '@/config/app'
+import { useDashboardStore } from '@/stores/dashboard'
+import TokenDistributionChart from '@/components/common/TokenDistributionChart.vue'
+import DetailedStatsTable from '@/components/common/DetailedStatsTable.vue'
+
+// Dashboard store for statistics
+const dashboardStore = useDashboardStore()
+const { requestLogsModelStats } = storeToRefs(dashboardStore)
+const { loadRequestLogsModelStats } = dashboardStore
 
 const headers = [
   '时间',
@@ -165,6 +193,13 @@ const cursor = ref('0-0')
 const loading = ref(false)
 const refreshInterval = 3000
 let timer = null
+
+// Statistics auto-refresh (30 seconds, always enabled)
+const statsLoading = ref(false)
+const statsCountdown = ref(30)
+const statsRefreshInterval = 30000 // 30 seconds
+let statsTimer = null
+let statsCountdownTimer = null
 
 const statusClassFor = (status) => {
   if (status === '...') {
@@ -317,7 +352,7 @@ const fetchLogs = async (reset = false) => {
       cursor.value = result.lastId
     }
   } catch (error) {
-    console.error('Failed to load request logs:', error)
+    // console.error('Failed to load request logs:', error)
   } finally {
     loading.value = false
   }
@@ -336,10 +371,10 @@ const sortedRows = computed(() => {
 
     // 如果缺少 Redis Stream ID，回退到时间戳排序
     if (!a.id || !b.id) {
-      console.warn('[Sort] Missing Redis Stream ID, falling back to timestamp:', {
-        a: { requestId: a.requestId, id: a.id, timestamp: a.timestamp },
-        b: { requestId: b.requestId, id: b.id, timestamp: b.timestamp }
-      })
+      // console.warn('[Sort] Missing Redis Stream ID, falling back to timestamp:', {
+      //   a: { requestId: a.requestId, id: a.id, timestamp: a.timestamp },
+      //   b: { requestId: b.requestId, id: b.id, timestamp: b.timestamp }
+      // })
       const timeA = new Date(a.completedAt || a.timestamp || 0).getTime()
       const timeB = new Date(b.completedAt || b.timestamp || 0).getTime()
       return timeB - timeA
@@ -389,14 +424,65 @@ const getFlashClass = (row) => {
   return ''
 }
 
+// Load statistics data
+const loadStats = async () => {
+  statsLoading.value = true
+  try {
+    await loadRequestLogsModelStats()
+  } catch (error) {
+    // console.error('Failed to load statistics:', error)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+// Start statistics countdown
+const startStatsCountdown = () => {
+  statsCountdown.value = statsRefreshInterval / 1000 // Reset to 30 seconds
+
+  if (statsCountdownTimer) {
+    clearInterval(statsCountdownTimer)
+  }
+
+  statsCountdownTimer = setInterval(() => {
+    if (statsCountdown.value > 0) {
+      statsCountdown.value--
+    }
+  }, 1000)
+}
+
+// Setup statistics auto-refresh
+const setupStatsAutoRefresh = () => {
+  // Initial load
+  loadStats()
+
+  // Start countdown
+  startStatsCountdown()
+
+  // Auto-refresh every 30 seconds
+  statsTimer = setInterval(() => {
+    loadStats()
+    startStatsCountdown()
+  }, statsRefreshInterval)
+}
+
 onMounted(() => {
   fetchLogs(true)
   timer = setInterval(fetchLogs, refreshInterval)
+
+  // Setup statistics auto-refresh
+  setupStatsAutoRefresh()
 })
 
 onBeforeUnmount(() => {
   if (timer) {
     clearInterval(timer)
+  }
+  if (statsTimer) {
+    clearInterval(statsTimer)
+  }
+  if (statsCountdownTimer) {
+    clearInterval(statsCountdownTimer)
   }
 })
 </script>
