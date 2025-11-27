@@ -158,6 +158,8 @@ const headers = [
   '耗时'
 ]
 
+const isNilOrEmpty = (value) => value === undefined || value === null || value === ''
+
 const rows = ref([])
 const cursor = ref('0-0')
 const loading = ref(false)
@@ -206,10 +208,16 @@ const mergeEvents = (events = []) => {
     if (event.apiKeyName) row.apiKeyName = event.apiKeyName
     if (event.apiKeyId) row.apiKeyId = event.apiKeyId
     if (event.userId) row.userId = event.userId
-    // Only update if new value exists and current value is null/undefined
-    if (event.accountId && !row.accountId) row.accountId = event.accountId
-    if (event.accountName && !row.accountName) row.accountName = event.accountName
-    if (event.model && !row.model) row.model = event.model
+    // Only update if new value is present and current value is missing (null/undefined/empty string)
+    if (!isNilOrEmpty(event.accountId) && isNilOrEmpty(row.accountId)) {
+      row.accountId = event.accountId
+    }
+    if (!isNilOrEmpty(event.accountName) && isNilOrEmpty(row.accountName)) {
+      row.accountName = event.accountName
+    }
+    if (!isNilOrEmpty(event.model) && isNilOrEmpty(row.model)) {
+      row.model = event.model
+    }
 
     if (event.phase === 'start') {
       row.statusDisplay = '...'
@@ -254,49 +262,25 @@ const mergeEvents = (events = []) => {
       if (event.durationMs !== undefined && event.durationMs !== null) {
         row.durationMs = event.durationMs
       }
-      // Only update if new value is not null/undefined (prefer existing non-null values)
-      // This prevents the first finish event (with null values) from overwriting
+      // Only update if new value is present and current value is missing (null/undefined/empty string)
+      // This prevents the first finish event (with null or empty values) from overwriting
       // the second finish event (with actual usage data)
-      if (
-        event.tokensIn !== undefined &&
-        event.tokensIn !== null &&
-        (row.tokensIn === undefined || row.tokensIn === null)
-      ) {
+      if (!isNilOrEmpty(event.tokensIn) && isNilOrEmpty(row.tokensIn)) {
         row.tokensIn = event.tokensIn
       }
-      if (
-        event.tokensOut !== undefined &&
-        event.tokensOut !== null &&
-        (row.tokensOut === undefined || row.tokensOut === null)
-      ) {
+      if (!isNilOrEmpty(event.tokensOut) && isNilOrEmpty(row.tokensOut)) {
         row.tokensOut = event.tokensOut
       }
-      if (
-        event.cacheCreateTokens !== undefined &&
-        event.cacheCreateTokens !== null &&
-        (row.cacheCreateTokens === undefined || row.cacheCreateTokens === null)
-      ) {
+      if (!isNilOrEmpty(event.cacheCreateTokens) && isNilOrEmpty(row.cacheCreateTokens)) {
         row.cacheCreateTokens = event.cacheCreateTokens
       }
-      if (
-        event.cacheReadTokens !== undefined &&
-        event.cacheReadTokens !== null &&
-        (row.cacheReadTokens === undefined || row.cacheReadTokens === null)
-      ) {
+      if (!isNilOrEmpty(event.cacheReadTokens) && isNilOrEmpty(row.cacheReadTokens)) {
         row.cacheReadTokens = event.cacheReadTokens
       }
-      if (
-        event.tokensTotal !== undefined &&
-        event.tokensTotal !== null &&
-        (row.tokensTotal === undefined || row.tokensTotal === null)
-      ) {
+      if (!isNilOrEmpty(event.tokensTotal) && isNilOrEmpty(row.tokensTotal)) {
         row.tokensTotal = event.tokensTotal
       }
-      if (
-        event.price !== undefined &&
-        event.price !== null &&
-        (row.price === undefined || row.price === null)
-      ) {
+      if (!isNilOrEmpty(event.price) && isNilOrEmpty(row.price)) {
         row.price = event.price
       }
       if (event.errorMessage) {

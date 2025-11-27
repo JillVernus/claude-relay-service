@@ -15,6 +15,7 @@ const claudeCodeHeadersService = require('../services/claudeCodeHeadersService')
 const sessionHelper = require('../utils/sessionHelper')
 const { updateRateLimitCounters } = require('../utils/rateLimitHelper')
 const pricingService = require('../services/pricingService')
+const requestLogService = require('../services/requestLogService')
 
 // 🔧 辅助函数：检查 API Key 权限
 function checkPermissions(apiKeyData, requiredPermission = 'claude') {
@@ -288,8 +289,36 @@ async function handleChatCompletion(req, res, apiKeyData) {
                 model,
                 accountId,
                 null,
+                null,
                 req
               )
+              .then(() => {
+                const meta = req.requestLogMeta || {}
+                return requestLogService.emitFinish({
+                  requestId: req.requestId,
+                  method: req.method,
+                  endpoint: req.originalUrl,
+                  apiKeyId: req.apiKey?.id,
+                  apiKeyName: req.apiKey?.name,
+                  userId: req.apiKey?.userUsername || req.apiKey?.userId || req.apiKey?.createdBy || null,
+                  accountId: meta.accountId || accountId || null,
+                  accountName: meta.accountName || null,
+                  model: meta.model || model || null,
+                  tokensIn: meta.tokensIn ?? usage.input_tokens ?? null,
+                  tokensOut: meta.tokensOut ?? usage.output_tokens ?? null,
+                  cacheCreateTokens: meta.cacheCreateTokens ?? cacheCreateTokens ?? null,
+                  cacheReadTokens: meta.cacheReadTokens ?? cacheReadTokens ?? null,
+                  tokensTotal:
+                    meta.tokensTotal ??
+                    (usage.input_tokens || 0) +
+                      (usage.output_tokens || 0) +
+                      (cacheCreateTokens || 0) +
+                      (cacheReadTokens || 0),
+                  price: meta.price ?? null,
+                  status: 200,
+                  durationMs: Date.now() - startTime
+                })
+              })
               .catch((error) => {
                 logger.error('❌ Failed to record usage:', error)
               })
@@ -378,8 +407,37 @@ async function handleChatCompletion(req, res, apiKeyData) {
             claudeRequest.model,
             accountId,
             null,
+            null,
             req
           )
+          .then(() => {
+            const meta = req.requestLogMeta || {}
+            return requestLogService.emitFinish({
+              requestId: req.requestId,
+              method: req.method,
+              endpoint: req.originalUrl,
+              apiKeyId: req.apiKey?.id,
+              apiKeyName: req.apiKey?.name,
+              userId: req.apiKey?.userUsername || req.apiKey?.userId || req.apiKey?.createdBy || null,
+              accountId: meta.accountId || accountId || null,
+              accountName: meta.accountName || null,
+              model: meta.model || claudeRequest.model || null,
+              tokensIn: meta.tokensIn ?? usage.input_tokens ?? null,
+              tokensOut: meta.tokensOut ?? usage.output_tokens ?? null,
+              cacheCreateTokens:
+                meta.cacheCreateTokens ?? cacheCreateTokens ?? usage.cache_creation_input_tokens ?? null,
+              cacheReadTokens: meta.cacheReadTokens ?? cacheReadTokens ?? null,
+              tokensTotal:
+                meta.tokensTotal ??
+                (usage.input_tokens || 0) +
+                  (usage.output_tokens || 0) +
+                  (cacheCreateTokens || 0) +
+                  (cacheReadTokens || 0),
+              price: meta.price ?? null,
+              status: 200,
+              durationMs: Date.now() - startTime
+            })
+          })
           .catch((error) => {
             logger.error('❌ Failed to record usage:', error)
           })

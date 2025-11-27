@@ -1607,7 +1607,7 @@ class ClaudeRelayService {
                     )
                   }
 
-                  // message_delta包含最终的output tokens
+                  // message_delta包含最终的output tokens（部分客户端仍使用此字段）
                   if (
                     data.type === 'message_delta' &&
                     data.usage &&
@@ -1633,6 +1633,51 @@ class ClaudeRelayService {
                       // 保存到列表中，但不立即触发回调
                       allUsageData.push({ ...currentUsageData })
                       // 重置当前数据，准备接收下一个
+                      currentUsageData = {}
+                    }
+                  }
+
+                  // Claude Code / beta clients often deliver final usage on message_stop
+                  if (data.type === 'message_stop' && data.message && data.message.usage) {
+                    const stopUsage = data.message.usage
+                    currentUsageData.input_tokens =
+                      stopUsage.input_tokens ?? currentUsageData.input_tokens ?? 0
+                    currentUsageData.output_tokens =
+                      stopUsage.output_tokens ?? currentUsageData.output_tokens ?? 0
+                    currentUsageData.cache_creation_input_tokens =
+                      stopUsage.cache_creation_input_tokens ??
+                      currentUsageData.cache_creation_input_tokens ??
+                      0
+                    currentUsageData.cache_read_input_tokens =
+                      stopUsage.cache_read_input_tokens ??
+                      currentUsageData.cache_read_input_tokens ??
+                      0
+                    currentUsageData.model = currentUsageData.model || stopUsage.model || body.model
+
+                    // 详细缓存信息（如果存在）
+                    if (stopUsage.cache_creation && typeof stopUsage.cache_creation === 'object') {
+                      currentUsageData.cache_creation = {
+                        ephemeral_5m_input_tokens:
+                          stopUsage.cache_creation.ephemeral_5m_input_tokens ||
+                          currentUsageData.cache_creation?.ephemeral_5m_input_tokens ||
+                          0,
+                        ephemeral_1h_input_tokens:
+                          stopUsage.cache_creation.ephemeral_1h_input_tokens ||
+                          currentUsageData.cache_creation?.ephemeral_1h_input_tokens ||
+                          0
+                      }
+                    }
+
+                    logger.debug(
+                      '📊 Collected usage data from message_stop:',
+                      JSON.stringify(currentUsageData)
+                    )
+
+                    if (
+                      currentUsageData.input_tokens !== undefined &&
+                      currentUsageData.output_tokens !== undefined
+                    ) {
+                      allUsageData.push({ ...currentUsageData })
                       currentUsageData = {}
                     }
                   }

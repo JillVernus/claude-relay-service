@@ -581,7 +581,8 @@ class DroidRelayService {
               currentUsageData,
               apiKeyData,
               account,
-              model
+              model,
+              clientRequest
             )
 
             const usageSummary = {
@@ -790,9 +791,9 @@ class DroidRelayService {
   /**
    * 记录从流中解析的 usage 数据
    */
-  async _recordUsageFromStreamData(usageData, apiKeyData, account, model) {
+  async _recordUsageFromStreamData(usageData, apiKeyData, account, model, clientRequest = null) {
     const normalizedUsage = this._normalizeUsageSnapshot(usageData)
-    await this._recordUsage(apiKeyData, account, model, normalizedUsage)
+    await this._recordUsage(apiKeyData, account, model, normalizedUsage, clientRequest)
     return normalizedUsage
   }
 
@@ -1069,7 +1070,7 @@ class DroidRelayService {
     const normalizedUsage = this._normalizeUsageSnapshot(usage)
 
     if (!skipUsageRecord) {
-      await this._recordUsage(apiKeyData, account, model, normalizedUsage)
+      await this._recordUsage(apiKeyData, account, model, normalizedUsage, clientRequest)
 
       const totalTokens = this._getTotalTokens(normalizedUsage)
 
@@ -1106,7 +1107,7 @@ class DroidRelayService {
   /**
    * 记录使用统计
    */
-  async _recordUsage(apiKeyData, account, model, usageObject = {}) {
+  async _recordUsage(apiKeyData, account, model, usageObject = {}, clientRequest = null) {
     const totalTokens = this._getTotalTokens(usageObject)
 
     if (totalTokens <= 0) {
@@ -1119,7 +1120,15 @@ class DroidRelayService {
       const accountId = this._extractAccountId(account)
 
       if (keyId) {
-        await apiKeyService.recordUsageWithDetails(keyId, usageObject, model, accountId, 'droid')
+        await apiKeyService.recordUsageWithDetails(
+          keyId,
+          usageObject,
+          model,
+          accountId,
+          'droid',
+          account?.name || null,
+          clientRequest
+        )
       } else if (accountId) {
         await redis.incrementAccountUsage(
           accountId,
