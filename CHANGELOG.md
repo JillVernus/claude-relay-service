@@ -4,6 +4,16 @@ All notable changes to Claude Relay Service will be documented in this file.
 
 ---
 
+## [jill-v1.09] - 2025-11-28
+
+### Added: Request Logs stats filter by API Key
+
+- Added an API Key selector to Request Logs stats so you can scope the Token Usage chart and detailed table to a single key or view all.
+- Reused existing `/admin/api-keys/:keyId/model-stats` endpoint; default remains global stats to avoid regressions.
+- UI shows auto-refresh countdown and preserves the previous behavior when no key is selected.
+
+---
+
 ## [jill-v1.08] - 2025-11-27
 
 ### Added: Token Usage Statistics to Request Logs

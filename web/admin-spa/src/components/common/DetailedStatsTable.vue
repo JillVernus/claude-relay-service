@@ -1,8 +1,13 @@
 <template>
   <div class="card p-4 sm:p-6">
-    <h4 class="mb-4 text-base font-semibold text-gray-800 dark:text-gray-200 sm:text-lg">
-      详细统计数据
-    </h4>
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <h4 class="text-base font-semibold text-gray-800 dark:text-gray-200 sm:text-lg">
+        详细统计数据
+      </h4>
+      <div class="flex items-center gap-2">
+        <slot name="actions" />
+      </div>
+    </div>
     <div v-if="modelStats.length === 0" class="py-8 text-center">
       <p class="text-sm text-gray-500 sm:text-base">暂无模型使用数据</p>
     </div>

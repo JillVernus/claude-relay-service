@@ -606,21 +606,30 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   // 加载 Request Logs 页面的模型统计 (固定为今日数据)
-  async function loadRequestLogsModelStats() {
+  async function loadRequestLogsModelStats(apiKeyId = '') {
     try {
       const now = new Date()
       // 获取系统时区的今天0点到23:59
       const startDate = getSystemTimezoneDay(now, true)
       const endDate = getSystemTimezoneDay(now, false)
 
-      const url = `/admin/model-stats?period=today&startDate=${encodeURIComponent(startDate.toISOString())}&endDate=${encodeURIComponent(endDate.toISOString())}`
+      // 支持可选的 API Key 过滤（如果提供）
+      // 单 Key 时使用 daily 预设（服务器按系统时区取当天数据）
+      const url = apiKeyId
+        ? `/admin/api-keys/${encodeURIComponent(apiKeyId)}/model-stats?period=daily`
+        : `/admin/model-stats?period=today&startDate=${encodeURIComponent(
+            startDate.toISOString()
+          )}&endDate=${encodeURIComponent(endDate.toISOString())}`
 
       const response = await apiClient.get(url)
       if (response.success) {
         requestLogsModelStats.value = response.data
+      } else {
+        requestLogsModelStats.value = []
       }
     } catch (error) {
       console.error('加载 Request Logs 模型统计失败:', error)
+      requestLogsModelStats.value = []
     }
   }
 

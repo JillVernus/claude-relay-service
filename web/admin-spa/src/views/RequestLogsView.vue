@@ -25,20 +25,34 @@
 
     <!-- Statistics Section -->
     <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-lg">
-          Token使用统计 (今日)
-        </h3>
-        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <span v-if="statsCountdown > 0">{{ statsCountdown }}秒后刷新统计</span>
-          <span v-else-if="statsLoading">统计加载中...</span>
-        </div>
+      <div class="flex items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <span v-if="statsCountdown > 0">{{ statsCountdown }}秒后刷新统计</span>
+        <span v-else-if="statsLoading">统计加载中...</span>
       </div>
 
       <!-- Charts Grid -->
       <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         <TokenDistributionChart height="175px" :model-stats="requestLogsModelStats" />
-        <DetailedStatsTable :model-stats="requestLogsModelStats" />
+        <DetailedStatsTable :model-stats="requestLogsModelStats">
+          <template #actions>
+            <el-select
+              v-model="selectedApiKeyId"
+              clearable
+              placeholder="全部 API Keys"
+              size="small"
+              style="min-width: 220px"
+              @change="onApiKeyFilterChange"
+            >
+              <el-option label="全部 API Keys" value="" />
+              <el-option
+                v-for="option in apiKeyOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </template>
+        </DetailedStatsTable>
       </div>
     </div>
 
@@ -193,6 +207,20 @@ const cursor = ref('0-0')
 const loading = ref(false)
 const refreshInterval = 3000
 let timer = null
+
+const selectedApiKeyId = ref('')
+
+const apiKeyOptions = computed(() => {
+  const map = new Map()
+  rows.value.forEach((row) => {
+    if (row.apiKeyId) {
+      const label = row.apiKeyName || row.apiKeyId
+      map.set(row.apiKeyId, label)
+    }
+  })
+
+  return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+})
 
 // Statistics auto-refresh (30 seconds, always enabled)
 const statsLoading = ref(false)
@@ -428,12 +456,17 @@ const getFlashClass = (row) => {
 const loadStats = async () => {
   statsLoading.value = true
   try {
-    await loadRequestLogsModelStats()
+    await loadRequestLogsModelStats(selectedApiKeyId.value)
   } catch (error) {
     // console.error('Failed to load statistics:', error)
   } finally {
     statsLoading.value = false
   }
+}
+
+const onApiKeyFilterChange = async () => {
+  await loadStats()
+  startStatsCountdown()
 }
 
 // Start statistics countdown
