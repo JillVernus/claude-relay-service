@@ -21,6 +21,7 @@ const openaiResponsesAccountsRoutes = require('./openaiResponsesAccounts')
 const droidAccountsRoutes = require('./droidAccounts')
 const dashboardRoutes = require('./dashboard')
 const usageStatsRoutes = require('./usageStats')
+const requestLogsRoutes = require('./requestLogs')
 const systemRoutes = require('./system')
 
 // 挂载所有子路由
@@ -34,6 +35,7 @@ router.use('/', openaiResponsesAccountsRoutes)
 router.use('/', droidAccountsRoutes)
 router.use('/', dashboardRoutes)
 router.use('/', usageStatsRoutes)
+router.use('/', requestLogsRoutes)
 router.use('/', systemRoutes)
 
 // 使用相对路径的模块（需要指定基础路径前缀）

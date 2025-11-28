@@ -125,7 +125,7 @@ git push -f origin feature/request-logs
 ## Your Custom Features (as of v1.06)
 
 Files with custom code:
-- `src/routes/admin.js` - `/request-logs` route (line ~9804)
+- `src/routes/admin/requestLogs.js` - `/request-logs` route
 - `src/services/requestLogService.js` - Request log service
 - `src/middleware/auth.js` - Request log polling exceptions
 - `src/middleware/requestContext.js` - Request context handling
