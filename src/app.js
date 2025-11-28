@@ -86,6 +86,11 @@ class Application {
       const claudeAccountService = require('./services/claudeAccountService')
       await claudeAccountService.initializeSessionWindows()
 
+      // 📊 初始化费用排序索引服务
+      logger.info('📊 Initializing cost rank service...')
+      const costRankService = require('./services/costRankService')
+      await costRankService.initialize()
+
       // 为每个请求建立异步上下文，便于在服务层获取当前请求信息
       this.app.use(requestContextMiddleware)
 
@@ -658,6 +663,15 @@ class Application {
             logger.info('🚨 Rate limit cleanup service stopped')
           } catch (error) {
             logger.error('❌ Error stopping rate limit cleanup service:', error)
+          }
+
+          // 停止费用排序索引服务
+          try {
+            const costRankService = require('./services/costRankService')
+            costRankService.shutdown()
+            logger.info('📊 Cost rank service stopped')
+          } catch (error) {
+            logger.error('❌ Error stopping cost rank service:', error)
           }
 
           // 🔢 清理所有并发计数（Phase 1 修复：防止重启泄漏）
