@@ -76,16 +76,20 @@
               :key="row.requestId"
               :class="['hover:bg-gray-50/70 dark:hover:bg-gray-800/50', getFlashClass(row)]"
             >
-              <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-900 dark:text-gray-100">
-                {{ formatTime(row.timestamp) }}
+              <td class="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">
+                <template
+                  v-for="time in [formatTimeParts(row.timestamp)]"
+                  :key="time.date || time.fallback || row.requestId"
+                >
+                  <div v-if="time.valid" class="flex flex-col leading-tight">
+                    <span>{{ time.date }}</span>
+                    <span class="text-gray-500 dark:text-gray-400">{{ time.time }}</span>
+                  </div>
+                  <span v-else>{{ time.fallback || '—' }}</span>
+                </template>
               </td>
               <td class="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-100">
                 {{ row.requestId }}
-              </td>
-              <td
-                class="text-primary-600 dark:text-primary-400 px-4 py-3 text-xs font-semibold uppercase"
-              >
-                {{ row.method || '—' }}
               </td>
               <td class="px-4 py-3 text-xs text-gray-800 dark:text-gray-200">
                 {{ row.endpoint }}
@@ -187,17 +191,16 @@ const { requestLogsModelStats } = storeToRefs(dashboardStore)
 const { loadRequestLogsModelStats } = dashboardStore
 
 const headers = [
-  '时间',
+  'Time',
   'Request ID',
-  '方法',
   'Endpoint',
   'API Key',
-  '账户',
-  '模型',
+  'Account',
+  'Model',
   'Tokens',
-  '价格',
-  '状态',
-  '耗时'
+  'Price',
+  'Status',
+  'Duration'
 ]
 
 const isNilOrEmpty = (value) => value === undefined || value === null || value === ''
@@ -412,12 +415,23 @@ const sortedRows = computed(() => {
   })
 })
 
-const formatTime = (ts) => {
-  if (!ts) return '—'
+const formatTimeParts = (ts) => {
+  if (!ts) return { valid: false, fallback: '—' }
+
   try {
-    return new Date(ts).toLocaleString()
+    const date = new Date(ts)
+    return {
+      valid: true,
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    }
   } catch (e) {
-    return ts
+    return { valid: false, fallback: ts }
   }
 }
 
