@@ -152,9 +152,6 @@ class Application {
       // 📏 请求大小限制
       this.app.use(requestSizeLimit)
 
-      // 📝 请求日志（使用自定义logger而不是morgan）
-      this.app.use(requestLogger)
-
       // 🐛 HTTP调试拦截器（仅在启用调试时生效）
       if (process.env.DEBUG_HTTP_TRAFFIC === 'true') {
         try {
@@ -180,6 +177,10 @@ class Application {
       )
       this.app.use(express.urlencoded({ extended: true, limit: '10mb' }))
       this.app.use(securityMiddleware)
+
+      // 📝 请求日志（使用自定义 logger 而不是 morgan）
+      // 放在 body 解析之后，以便在 start 事件中获取请求体中的模型信息
+      this.app.use(requestLogger)
 
       // 🎯 信任代理
       if (config.server.trustProxy) {

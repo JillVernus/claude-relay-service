@@ -602,6 +602,33 @@ const authenticateApiKey = async (req, res, next) => {
     }
     req.usage = validation.keyData.usage
 
+    // 🔄 在认证成功后立即推送 API Key 信息到请求日志（start 阶段更新）
+    // 这样前端在 pending 状态也能看到 API Key 关联信息
+    if (req.requestId) {
+      const apiKeyMeta = {
+        apiKeyId: validation.keyData.id,
+        apiKeyName: validation.keyData.name,
+        userId:
+          validation.keyData.userUsername ||
+          validation.keyData.userId ||
+          validation.keyData.createdBy ||
+          null
+      }
+
+      req.requestLogMeta = { ...(req.requestLogMeta || {}), ...apiKeyMeta }
+
+      // 防抖：仅发送一次 API Key 预填事件
+      if (!req._requestLogPatchedApiKey) {
+        req._requestLogPatchedApiKey = true
+        requestLogService.emitStart({
+          requestId: req.requestId,
+          method: req.method,
+          endpoint: req.originalUrl,
+          ...apiKeyMeta
+        })
+      }
+    }
+
     const authDuration = Date.now() - startTime
     const userAgent = req.headers['user-agent'] || 'No User-Agent'
     logger.api(
@@ -1032,12 +1059,27 @@ const requestLogger = (req, res, next) => {
   req.requestId = requestId
   res.setHeader('X-Request-ID', requestId)
 
+  // 预先捕获请求体里的模型，供 start 事件展示；finish 事件会用最终模型覆盖
+  const requestBodyModel =
+    (typeof req.body?.model === 'string' && req.body.model) ||
+    (typeof req.body?.modelId === 'string' && req.body.modelId) ||
+    (typeof req.body?.model_id === 'string' && req.body.model_id) ||
+    (typeof req.query?.model === 'string' && req.query.model) ||
+    null
+
+  const initialModel = req.requestLogMeta?.model || requestBodyModel
+
+  if (initialModel && (!req.requestLogMeta || !req.requestLogMeta.model)) {
+    req.requestLogMeta = { ...(req.requestLogMeta || {}), model: initialModel }
+  }
+
   // 在请求进入时写入开始事件（详细字段在完成时补充）
   if (shouldLogRequest) {
     requestLogService.emitStart({
       requestId,
       method: req.method,
       endpoint: req.originalUrl,
+      model: initialModel || null,
       status: 'pending'
     })
   }
@@ -1105,6 +1147,7 @@ const requestLogger = (req, res, next) => {
     const tokensOut = meta.tokensOut ?? meta.outputTokens ?? null
     const cacheCreateTokens = meta.cacheCreateTokens ?? meta.cacheTokens ?? null
     const cacheReadTokens = meta.cacheReadTokens ?? null
+    const resolvedModel = meta.model ?? initialModel ?? null
     const tokensTotal =
       meta.tokensTotal ??
       meta.totalTokens ??
@@ -1124,7 +1167,7 @@ const requestLogger = (req, res, next) => {
         userId: req.apiKey?.userUsername || req.apiKey?.userId || req.apiKey?.createdBy || null,
         accountId: meta.accountId || null,
         accountName: meta.accountName || null,
-        model: meta.model || null,
+        model: resolvedModel,
         tokensIn,
         tokensOut,
         cacheCreateTokens,
