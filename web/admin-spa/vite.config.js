@@ -5,6 +5,8 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
+import fs from 'node:fs'
+import path from 'node:path'
 
 export default defineConfig(({ mode }) => {
   // 加载环境变量
@@ -13,6 +15,11 @@ export default defineConfig(({ mode }) => {
   const httpProxy = env.VITE_HTTP_PROXY || env.HTTP_PROXY || env.http_proxy
   // 使用环境变量配置基础路径，如果未设置则使用默认值
   const basePath = env.VITE_APP_BASE_URL || (mode === 'development' ? '/admin/' : '/admin-next/')
+  const rootDir = fileURLToPath(new URL('.', import.meta.url))
+  const featVersionPath = path.resolve(rootDir, '../../FEAT-VERSION')
+  const featVersion = fs.existsSync(featVersionPath)
+    ? fs.readFileSync(featVersionPath, 'utf8').trim()
+    : ''
 
   // 创建代理配置
   const proxyConfig = {
@@ -58,6 +65,9 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
       }
+    },
+    define: {
+      __FEAT_VERSION__: JSON.stringify(featVersion)
     },
     server: {
       port: 3001,

@@ -1,3 +1,10 @@
+/* global __FEAT_VERSION__ */
+
+// 请求日志版本：优先环境变量，其次构建时注入的 FEAT-VERSION 文件，最后回退默认值
+const envRequestLogVersion = (import.meta.env.VITE_REQUEST_LOG_VERSION || '').trim()
+const buildRequestLogVersion =
+  typeof __FEAT_VERSION__ !== 'undefined' && __FEAT_VERSION__ ? __FEAT_VERSION__.trim() : ''
+
 // 应用配置
 export const APP_CONFIG = {
   // 应用基础路径
@@ -13,7 +20,7 @@ export const APP_CONFIG = {
   apiPrefix: import.meta.env.DEV ? '/webapi' : '',
 
   // 请求日志功能版本
-  requestLogVersion: 'jill-v1.09'
+  requestLogVersion: envRequestLogVersion || buildRequestLogVersion || 'jill-v1.09'
 }
 
 // 获取完整的应用URL

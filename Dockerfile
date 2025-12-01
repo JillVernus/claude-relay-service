@@ -7,6 +7,9 @@ WORKDIR /app/web/admin-spa
 # 📦 复制前端依赖文件
 COPY web/admin-spa/package*.json ./
 
+# 🔢 复制功能版本文件（用于前端构建时注入版本号）
+COPY FEAT-VERSION /app/FEAT-VERSION
+
 # 🔽 安装前端依赖
 RUN npm ci
 
