@@ -1,23 +1,27 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+  <div class="space-y-3">
+    <!-- Header: Title + Description + Controls all in one line -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
           请求日志
           <span class="text-sm font-normal text-gray-500 dark:text-gray-400"
             >(ver.{{ APP_CONFIG.requestLogVersion }})</span
           >
         </h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          仅展示 API Key 请求，自动刷新（{{ refreshInterval / 1000 }}s），最新请求在最上方
-        </p>
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          仅展示 API Key 请求，自动刷新（{{ refreshInterval / 1000 }}s），最新在上
+        </span>
       </div>
       <div class="flex items-center gap-2">
+        <span v-if="statsCountdown > 0" class="text-xs text-gray-500 dark:text-gray-400">
+          {{ statsCountdown }}s
+        </span>
         <span v-if="loading" class="text-xs text-gray-500 dark:text-gray-400">同步中...</span>
         <el-select
           v-model="fetchLimit"
           size="small"
-          style="width: 110px"
+          style="width: 100px"
           @change="onFetchLimitChange"
         >
           <el-option label="200 条" :value="200" />
@@ -26,21 +30,16 @@
           <el-option label="2000 条" :value="2000" />
         </el-select>
         <button
-          class="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow focus:outline-none focus:ring-2"
+          class="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-white shadow focus:outline-none focus:ring-2"
           @click="manualRefresh"
         >
-          手动刷新
+          刷新
         </button>
       </div>
     </div>
 
     <!-- Statistics Section -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span v-if="statsCountdown > 0">{{ statsCountdown }}秒后刷新统计</span>
-        <span v-else-if="statsLoading">统计加载中...</span>
-      </div>
-
+    <div class="space-y-3">
       <!-- Charts Grid -->
       <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         <TokenDistributionChart height="175px" :model-stats="requestLogsModelStats" />
@@ -75,7 +74,7 @@
               <th
                 v-for="header in headers"
                 :key="header"
-                class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+                class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
               >
                 {{ header }}
               </th>
@@ -87,7 +86,7 @@
               :key="row.requestId"
               :class="['hover:bg-gray-50/70 dark:hover:bg-gray-800/50', getFlashClass(row)]"
             >
-              <td class="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">
+              <td class="px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100">
                 <template
                   v-for="time in [formatTimeParts(row.timestamp)]"
                   :key="time.date || time.fallback || row.requestId"
@@ -99,22 +98,22 @@
                   <span v-else>{{ time.fallback || '—' }}</span>
                 </template>
               </td>
-              <td class="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-100">
+              <td class="px-3 py-1.5 font-mono text-xs text-gray-700 dark:text-gray-100">
                 {{ row.requestId }}
               </td>
-              <td class="px-4 py-3 text-xs text-gray-800 dark:text-gray-200">
+              <td class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-200">
                 {{ row.endpoint }}
               </td>
-              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
+              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200">
                 {{ row.apiKeyName || row.apiKeyId || '—' }}
               </td>
-              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
+              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200">
                 {{ row.accountName || row.accountId || '—' }}
               </td>
-              <td class="px-4 py-3 text-xs text-gray-800 dark:text-gray-100">
+              <td class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-100">
                 {{ row.model || '—' }}
               </td>
-              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
+              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
                 <div class="flex flex-col font-mono text-xs leading-relaxed">
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
@@ -147,10 +146,10 @@
                   </span>
                 </div>
               </td>
-              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
+              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
                 {{ formatPrice(row.price) }}
               </td>
-              <td class="px-4 py-3 text-xs">
+              <td class="px-3 py-1.5 text-xs">
                 <el-tooltip
                   v-if="row.errorMessage && Number(row.status) >= 400"
                   :content="row.errorMessage"
@@ -176,7 +175,7 @@
                   {{ row.statusDisplay }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-xs text-gray-700 dark:text-gray-100">
+              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
                 {{ row.durationMs ? `${row.durationMs} ms` : '…' }}
               </td>
             </tr>
