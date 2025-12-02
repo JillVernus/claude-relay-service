@@ -20,10 +20,10 @@
           style="width: 110px"
           @change="onFetchLimitChange"
         >
-          <el-option :value="200" label="200 条" />
-          <el-option :value="500" label="500 条" />
-          <el-option :value="1000" label="1000 条" />
-          <el-option :value="2000" label="2000 条" />
+          <el-option label="200 条" :value="200" />
+          <el-option label="500 条" :value="500" />
+          <el-option label="1000 条" :value="1000" />
+          <el-option label="2000 条" :value="2000" />
         </el-select>
         <button
           class="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow focus:outline-none focus:ring-2"
