@@ -1059,6 +1059,22 @@ const requestLogger = (req, res, next) => {
   req.requestId = requestId
   res.setHeader('X-Request-ID', requestId)
 
+  // 拦截 res.json() 自动捕获错误响应中的 errorMessage
+  const originalJson = res.json.bind(res)
+  res.json = function (body) {
+    // 只在错误状态码时尝试提取错误信息
+    if (res.statusCode >= 400 && !req.errorMessage) {
+      if (body?.error?.message) {
+        req.errorMessage = body.error.message
+      } else if (typeof body?.error === 'string') {
+        req.errorMessage = body.error
+      } else if (body?.message) {
+        req.errorMessage = body.message
+      }
+    }
+    return originalJson(body)
+  }
+
   // 预先捕获请求体里的模型，供 start 事件展示；finish 事件会用最终模型覆盖
   const requestBodyModel =
     (typeof req.body?.model === 'string' && req.body.model) ||

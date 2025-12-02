@@ -14,6 +14,17 @@
       </div>
       <div class="flex items-center gap-2">
         <span v-if="loading" class="text-xs text-gray-500 dark:text-gray-400">同步中...</span>
+        <el-select
+          v-model="fetchLimit"
+          size="small"
+          style="width: 110px"
+          @change="onFetchLimitChange"
+        >
+          <el-option :value="200" label="200 条" />
+          <el-option :value="500" label="500 条" />
+          <el-option :value="1000" label="1000 条" />
+          <el-option :value="2000" label="2000 条" />
+        </el-select>
         <button
           class="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow focus:outline-none focus:ring-2"
           @click="manualRefresh"
@@ -211,6 +222,18 @@ const loading = ref(false)
 const refreshInterval = 3000
 let timer = null
 
+// 记录数量选择（从 localStorage 读取，默认 200）
+const FETCH_LIMIT_KEY = 'requestLogs.fetchLimit'
+const fetchLimit = ref(parseInt(localStorage.getItem(FETCH_LIMIT_KEY), 10) || 200)
+
+const onFetchLimitChange = () => {
+  localStorage.setItem(FETCH_LIMIT_KEY, fetchLimit.value)
+  // 重置并重新获取
+  rows.value = []
+  cursor.value = '0-0'
+  fetchLogs(true)
+}
+
 const selectedApiKeyId = ref('')
 
 const apiKeyOptions = computed(() => {
@@ -372,7 +395,7 @@ const fetchLogs = async (reset = false) => {
     const result = await apiClient.get('/admin/request-logs', {
       params: {
         cursor: startCursor,
-        limit: 200
+        limit: fetchLimit.value
       }
     })
 

@@ -9,7 +9,7 @@ const router = express.Router()
 router.get('/request-logs', authenticateAdmin, async (req, res) => {
   try {
     const cursor = req.query.cursor || '0-0'
-    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500)
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 2000)
 
     const { events, lastId } = await requestLogService.getEvents(cursor, limit)
 
