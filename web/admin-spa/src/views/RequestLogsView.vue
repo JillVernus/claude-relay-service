@@ -518,10 +518,9 @@ const displayNumber = (value) => {
 }
 
 const hasCache = (row) => {
-  return (
-    (row.cacheCreateTokens !== undefined && row.cacheCreateTokens !== null) ||
-    (row.cacheReadTokens !== undefined && row.cacheReadTokens !== null)
-  )
+  // Only show cache line if at least one cache value is > 0
+  // This aligns with the price column which also hides cache line when both are 0
+  return row.cacheCreateTokens > 0 || row.cacheReadTokens > 0
 }
 
 const getFlashClass = (row) => {
