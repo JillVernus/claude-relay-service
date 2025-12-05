@@ -108,7 +108,12 @@
                 {{ row.apiKeyName || row.apiKeyId || '—' }}
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200">
-                {{ row.accountName || row.accountId || '—' }}
+                <div class="flex flex-col leading-tight">
+                  <span>{{ row.accountName || row.accountId || '—' }}</span>
+                  <span v-if="row.accountTypeName" class="text-gray-400 dark:text-gray-500">
+                    {{ row.accountTypeName }}
+                  </span>
+                </div>
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-100">
                 {{ row.model || '—' }}
@@ -147,7 +152,41 @@
                 </div>
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
-                {{ formatPrice(row.price) }}
+                <div
+                  v-if="row.costBreakdown"
+                  class="flex flex-col font-mono text-xs leading-relaxed"
+                >
+                  <span>
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
+                    <span class="text-green-600 dark:text-green-400"
+                      >${{ row.costBreakdown.input?.toFixed(4) || '0' }}</span
+                    >
+                    <span class="text-gray-400"> / </span>
+                    <span class="text-blue-600 dark:text-blue-400"
+                      >${{ row.costBreakdown.output?.toFixed(4) || '0' }}</span
+                    >
+                  </span>
+                  <span v-if="row.costBreakdown.cacheWrite > 0 || row.costBreakdown.cacheRead > 0">
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Cache</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
+                    <span class="text-green-600 dark:text-green-400"
+                      >${{ row.costBreakdown.cacheWrite?.toFixed(4) || '0' }}</span
+                    >
+                    <span class="text-gray-400"> / </span>
+                    <span class="text-amber-600 dark:text-amber-400"
+                      >${{ row.costBreakdown.cacheRead?.toFixed(4) || '0' }}</span
+                    >
+                  </span>
+                  <span>
+                    <span class="inline-block w-12 text-gray-500 dark:text-gray-400">Total</span>
+                    <span class="text-gray-400 dark:text-gray-500">: </span>
+                    <span class="text-purple-600 dark:text-purple-400"
+                      >${{ row.costBreakdown.total?.toFixed(4) || '0' }}</span
+                    >
+                  </span>
+                </div>
+                <span v-else>{{ formatPrice(row.price) }}</span>
               </td>
               <td class="px-3 py-1.5 text-xs">
                 <el-tooltip
@@ -303,6 +342,12 @@ const mergeEvents = (events = []) => {
     if (!isNilOrEmpty(event.accountName) && isNilOrEmpty(row.accountName)) {
       row.accountName = event.accountName
     }
+    if (!isNilOrEmpty(event.accountType) && isNilOrEmpty(row.accountType)) {
+      row.accountType = event.accountType
+    }
+    if (!isNilOrEmpty(event.accountTypeName) && isNilOrEmpty(row.accountTypeName)) {
+      row.accountTypeName = event.accountTypeName
+    }
     if (!isNilOrEmpty(event.model) && isNilOrEmpty(row.model)) {
       row.model = event.model
     }
@@ -370,6 +415,12 @@ const mergeEvents = (events = []) => {
       }
       if (!isNilOrEmpty(event.price) && isNilOrEmpty(row.price)) {
         row.price = event.price
+      }
+      if (!isNilOrEmpty(event.costFormatted) && isNilOrEmpty(row.costFormatted)) {
+        row.costFormatted = event.costFormatted
+      }
+      if (event.costBreakdown && !row.costBreakdown) {
+        row.costBreakdown = event.costBreakdown
       }
       if (event.errorMessage) {
         row.errorMessage = event.errorMessage
