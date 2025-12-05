@@ -9,15 +9,11 @@
             >(ver.{{ APP_CONFIG.requestLogVersion }})</span
           >
         </h1>
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          仅展示 API Key 请求，自动刷新（{{ refreshInterval / 1000 }}s），最新在上
-        </span>
       </div>
       <div class="flex items-center gap-2">
-        <span v-if="statsCountdown > 0" class="text-xs text-gray-500 dark:text-gray-400">
-          {{ statsCountdown }}s
+        <span v-if="statsCountdown > 0" class="text-xs text-gray-400 dark:text-gray-500">
+          统计刷新 {{ statsCountdown }}s
         </span>
-        <span v-if="loading" class="text-xs text-gray-500 dark:text-gray-400">同步中...</span>
         <el-select
           v-model="fetchLimit"
           size="small"
