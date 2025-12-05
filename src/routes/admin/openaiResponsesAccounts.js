@@ -447,4 +447,133 @@ router.post('/openai-responses-accounts/:id/reset-usage', authenticateAdmin, asy
   }
 })
 
+// ==================== 账户定价乘数管理 ====================
+const accountPricingService = require('../../services/accountPricingService')
+
+// 获取账户的定价乘数配置
+router.get('/openai-responses-accounts/:id/pricing', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // 验证账户存在
+    const account = await openaiResponsesAccountService.getAccount(id)
+    if (!account) {
+      return res.status(404).json({ success: false, error: 'Account not found' })
+    }
+
+    const pricing = await accountPricingService.getPricing(id)
+    return res.json({
+      success: true,
+      data: pricing || {}
+    })
+  } catch (error) {
+    logger.error('❌ Failed to get OpenAI-Responses account pricing:', error)
+    return res.status(500).json({ success: false, error: 'Failed to get pricing', message: error.message })
+  }
+})
+
+// 设置账户的定价乘数配置
+router.put('/openai-responses-accounts/:id/pricing', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { pricing } = req.body
+
+    // 验证账户存在
+    const account = await openaiResponsesAccountService.getAccount(id)
+    if (!account) {
+      return res.status(404).json({ success: false, error: 'Account not found' })
+    }
+
+    if (!pricing || typeof pricing !== 'object') {
+      return res.status(400).json({ success: false, error: 'Pricing object is required' })
+    }
+
+    await accountPricingService.setPricing(id, pricing)
+    logger.success(`💰 Admin updated pricing multipliers for OpenAI-Responses account: ${id}`)
+
+    return res.json({
+      success: true,
+      message: 'Pricing multipliers updated successfully'
+    })
+  } catch (error) {
+    logger.error('❌ Failed to set OpenAI-Responses account pricing:', error)
+    return res.status(500).json({ success: false, error: 'Failed to set pricing', message: error.message })
+  }
+})
+
+// 设置账户某个模型的定价乘数
+router.put(
+  '/openai-responses-accounts/:id/pricing/:modelName',
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { id, modelName } = req.params
+      const multipliers = req.body
+
+      // 验证账户存在
+      const account = await openaiResponsesAccountService.getAccount(id)
+      if (!account) {
+        return res.status(404).json({ success: false, error: 'Account not found' })
+      }
+
+      if (!multipliers || typeof multipliers !== 'object') {
+        return res.status(400).json({ success: false, error: 'Multipliers object is required' })
+      }
+
+      await accountPricingService.setModelPricing(id, decodeURIComponent(modelName), multipliers)
+      logger.success(
+        `💰 Admin updated pricing for OpenAI-Responses account: ${id}, model: ${modelName}`
+      )
+
+      return res.json({
+        success: true,
+        message: 'Model pricing multipliers updated successfully'
+      })
+    } catch (error) {
+      logger.error('❌ Failed to set OpenAI-Responses account model pricing:', error)
+      return res.status(500).json({ success: false, error: 'Failed to set model pricing', message: error.message })
+    }
+  }
+)
+
+// 删除账户某个模型的定价乘数
+router.delete(
+  '/openai-responses-accounts/:id/pricing/:modelName',
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { id, modelName } = req.params
+
+      // 验证账户存在
+      const account = await openaiResponsesAccountService.getAccount(id)
+      if (!account) {
+        return res.status(404).json({ success: false, error: 'Account not found' })
+      }
+
+      const deleted = await accountPricingService.deleteModelPricing(
+        id,
+        decodeURIComponent(modelName)
+      )
+
+      if (!deleted) {
+        return res.status(404).json({ success: false, error: 'Model pricing not found' })
+      }
+
+      logger.success(
+        `💰 Admin deleted pricing for OpenAI-Responses account: ${id}, model: ${modelName}`
+      )
+
+      return res.json({
+        success: true,
+        message: 'Model pricing multipliers deleted successfully'
+      })
+    } catch (error) {
+      logger.error('❌ Failed to delete OpenAI-Responses account model pricing:', error)
+      return res
+        .status(500)
+        .json({ success: false, error: 'Failed to delete model pricing', message: error.message })
+    }
+  }
+)
+
 module.exports = router

@@ -3639,6 +3639,23 @@
             </div>
           </div>
 
+          <!-- 模型定价倍率配置 (仅限 claude-console 和 openai-responses 账户编辑模式) -->
+          <div
+            v-if="
+              isEdit &&
+              (form.platform === 'claude-console' || form.platform === 'openai-responses') &&
+              props.account?.id
+            "
+            class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/30"
+          >
+            <ModelPricingMultipliers
+              :account-id="props.account.id"
+              :platform="form.platform"
+              @error="(msg) => showToast(msg, 'error')"
+              @success="(msg) => showToast(msg, 'success')"
+            />
+          </div>
+
           <!-- 代理设置 -->
           <ProxyConfig v-model="form.proxy" />
 
@@ -3704,6 +3721,7 @@ import OAuthFlow from './OAuthFlow.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import GroupManagementModal from './GroupManagementModal.vue'
 import ApiKeyManagementModal from './ApiKeyManagementModal.vue'
+import ModelPricingMultipliers from './ModelPricingMultipliers.vue'
 
 const props = defineProps({
   account: {
@@ -5656,8 +5674,8 @@ const handleApiKeyRefresh = async () => {
     try {
       await refresher()
       return
-    } catch (error) {
-      console.error('刷新账户列表失败:', error)
+    } catch {
+      // Silently ignore refresh errors
     }
   }
 }

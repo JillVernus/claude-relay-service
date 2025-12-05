@@ -493,4 +493,133 @@ router.post('/claude-console-accounts/:accountId/test', authenticateAdmin, async
   }
 })
 
+// ==================== 账户定价乘数管理 ====================
+const accountPricingService = require('../../services/accountPricingService')
+
+// 获取账户的定价乘数配置
+router.get('/claude-console-accounts/:accountId/pricing', authenticateAdmin, async (req, res) => {
+  try {
+    const { accountId } = req.params
+
+    // 验证账户存在
+    const account = await claudeConsoleAccountService.getAccount(accountId)
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' })
+    }
+
+    const pricing = await accountPricingService.getPricing(accountId)
+    return res.json({
+      success: true,
+      data: pricing || {}
+    })
+  } catch (error) {
+    logger.error('❌ Failed to get Claude Console account pricing:', error)
+    return res.status(500).json({ error: 'Failed to get pricing', message: error.message })
+  }
+})
+
+// 设置账户的定价乘数配置
+router.put('/claude-console-accounts/:accountId/pricing', authenticateAdmin, async (req, res) => {
+  try {
+    const { accountId } = req.params
+    const { pricing } = req.body
+
+    // 验证账户存在
+    const account = await claudeConsoleAccountService.getAccount(accountId)
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' })
+    }
+
+    if (!pricing || typeof pricing !== 'object') {
+      return res.status(400).json({ error: 'Pricing object is required' })
+    }
+
+    await accountPricingService.setPricing(accountId, pricing)
+    logger.success(`💰 Admin updated pricing multipliers for Claude Console account: ${accountId}`)
+
+    return res.json({
+      success: true,
+      message: 'Pricing multipliers updated successfully'
+    })
+  } catch (error) {
+    logger.error('❌ Failed to set Claude Console account pricing:', error)
+    return res.status(500).json({ error: 'Failed to set pricing', message: error.message })
+  }
+})
+
+// 设置账户某个模型的定价乘数
+router.put(
+  '/claude-console-accounts/:accountId/pricing/:modelName',
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { accountId, modelName } = req.params
+      const multipliers = req.body
+
+      // 验证账户存在
+      const account = await claudeConsoleAccountService.getAccount(accountId)
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' })
+      }
+
+      if (!multipliers || typeof multipliers !== 'object') {
+        return res.status(400).json({ error: 'Multipliers object is required' })
+      }
+
+      await accountPricingService.setModelPricing(accountId, decodeURIComponent(modelName), multipliers)
+      logger.success(
+        `💰 Admin updated pricing for Claude Console account: ${accountId}, model: ${modelName}`
+      )
+
+      return res.json({
+        success: true,
+        message: 'Model pricing multipliers updated successfully'
+      })
+    } catch (error) {
+      logger.error('❌ Failed to set Claude Console account model pricing:', error)
+      return res.status(500).json({ error: 'Failed to set model pricing', message: error.message })
+    }
+  }
+)
+
+// 删除账户某个模型的定价乘数
+router.delete(
+  '/claude-console-accounts/:accountId/pricing/:modelName',
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { accountId, modelName } = req.params
+
+      // 验证账户存在
+      const account = await claudeConsoleAccountService.getAccount(accountId)
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' })
+      }
+
+      const deleted = await accountPricingService.deleteModelPricing(
+        accountId,
+        decodeURIComponent(modelName)
+      )
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Model pricing not found' })
+      }
+
+      logger.success(
+        `💰 Admin deleted pricing for Claude Console account: ${accountId}, model: ${modelName}`
+      )
+
+      return res.json({
+        success: true,
+        message: 'Model pricing multipliers deleted successfully'
+      })
+    } catch (error) {
+      logger.error('❌ Failed to delete Claude Console account model pricing:', error)
+      return res
+        .status(500)
+        .json({ error: 'Failed to delete model pricing', message: error.message })
+    }
+  }
+)
+
 module.exports = router

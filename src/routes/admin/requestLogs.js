@@ -5,6 +5,7 @@ const logger = require('../../utils/logger')
 
 // Cost calculation
 const CostCalculator = require('../../utils/costCalculator')
+const { calculateCostWithAccountType } = require('../../utils/accountPricingAdjuster')
 
 // Account services for resolution
 const claudeAccountService = require('../../services/claudeAccountService')
@@ -119,16 +120,41 @@ router.get('/request-logs', authenticateAdmin, async (req, res) => {
         const tokensTotal = toNumber(event.tokensTotal)
         const model = event.model || null
 
-        // Calculate cost if missing but tokens available
+        // Resolve account info first (needed for pricing multipliers)
+        let accountName = event.accountName || null
+        let accountType = event.accountType || null
+        let accountTypeName = null
+        const accountId = event.accountId || null
+
+        if (accountId && !accountName) {
+          const accountInfo = await resolveAccountInfo(accountId, accountType)
+          if (accountInfo) {
+            accountName = accountInfo.name
+            accountType = accountInfo.type
+          }
+        }
+
+        if (accountType) {
+          accountTypeName = accountTypeNames[accountType] || accountTypeNames.unknown
+        }
+
+        // Calculate cost with account-specific multipliers
         let price = toNumber(event.price)
         let costBreakdown = null
         let costFormatted = null
+        let multipliersApplied = false
 
         const hasTokens = tokensIn > 0 || tokensOut > 0
         if (hasTokens && model) {
           try {
             const usage = toUsageObject(event)
-            const costInfo = CostCalculator.calculateCost(usage, model)
+            // Use adjuster for supported account types, falls back to base calculation
+            const costInfo = await calculateCostWithAccountType(
+              usage,
+              model,
+              accountType,
+              accountId
+            )
             if (costInfo?.costs) {
               // Use calculated cost if original price is missing
               if (price === null) {
@@ -142,27 +168,30 @@ router.get('/request-logs', authenticateAdmin, async (req, res) => {
                 total: costInfo.costs.total || 0
               }
               costFormatted = costInfo.formatted?.total || null
+              multipliersApplied = costInfo.multipliers?.applied || false
             }
           } catch {
-            // Silently ignore cost calculation errors, use original price
+            // Fallback to base calculation on error
+            try {
+              const usage = toUsageObject(event)
+              const costInfo = CostCalculator.calculateCost(usage, model)
+              if (costInfo?.costs) {
+                if (price === null) {
+                  price = costInfo.costs.total
+                }
+                costBreakdown = {
+                  input: costInfo.costs.input || 0,
+                  output: costInfo.costs.output || 0,
+                  cacheWrite: costInfo.costs.cacheWrite || 0,
+                  cacheRead: costInfo.costs.cacheRead || 0,
+                  total: costInfo.costs.total || 0
+                }
+                costFormatted = costInfo.formatted?.total || null
+              }
+            } catch {
+              // Silently ignore cost calculation errors, use original price
+            }
           }
-        }
-
-        // Resolve account info if needed
-        let accountName = event.accountName || null
-        let accountType = event.accountType || null
-        let accountTypeName = null
-
-        if (event.accountId && !accountName) {
-          const accountInfo = await resolveAccountInfo(event.accountId, accountType)
-          if (accountInfo) {
-            accountName = accountInfo.name
-            accountType = accountInfo.type
-          }
-        }
-
-        if (accountType) {
-          accountTypeName = accountTypeNames[accountType] || accountTypeNames.unknown
         }
 
         return {
@@ -188,6 +217,7 @@ router.get('/request-logs', authenticateAdmin, async (req, res) => {
           price,
           costFormatted,
           costBreakdown,
+          multipliersApplied,
           // 将后端收集的详细错误信息返回给前端用于状态码悬浮提示
           errorMessage: event.errorMessage || null,
           status: toNumber(event.status) ?? event.status,
