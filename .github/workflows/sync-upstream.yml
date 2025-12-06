@@ -40,6 +40,9 @@ jobs:
       - name: Sync main with upstream
         id: sync_main
         run: |
+          # Save workflow file before sync
+          cp .github/workflows/sync-upstream.yml /tmp/sync-upstream.yml
+
           git checkout main
 
           BEHIND=$(git rev-list --count HEAD..upstream/main)
@@ -55,14 +58,21 @@ jobs:
 
           if git merge --ff-only upstream/main; then
             echo "Fast-forward merge successful"
-            git push origin main
-            echo "main_updated=true" >> $GITHUB_OUTPUT
           else
             echo "Fast-forward failed, resetting to upstream"
             git reset --hard upstream/main
-            git push origin main --force
-            echo "main_updated=true" >> $GITHUB_OUTPUT
           fi
+
+          # Restore workflow file
+          mkdir -p .github/workflows
+          cp /tmp/sync-upstream.yml .github/workflows/sync-upstream.yml
+          if ! git diff --quiet .github/workflows/sync-upstream.yml; then
+            git add .github/workflows/sync-upstream.yml
+            git commit -m "chore: preserve sync-upstream workflow [skip ci]"
+          fi
+
+          git push origin main --force-with-lease
+          echo "main_updated=true" >> $GITHUB_OUTPUT
 
       - name: Merge main into feature branch
         id: merge_feature
