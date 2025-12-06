@@ -170,7 +170,7 @@ class AccountPricingService {
 
   /**
    * Get multipliers for a specific account and model
-   * Returns default multipliers (1.0) if not configured
+   * Priority: model-specific > account default (_default) > system default (1.0)
    * @param {string} accountId - The account ID
    * @param {string} modelName - The model name
    * @returns {Promise<Object>} - { input, output, cacheCreate, cacheRead }
@@ -189,15 +189,21 @@ class AccountPricingService {
 
     try {
       const pricing = await this.getPricing(accountId)
-      if (!pricing || !pricing[modelName]) {
+      if (!pricing) {
+        return defaultMultipliers
+      }
+
+      // Priority: model-specific > account default (_default) > system default
+      const modelPricing = pricing[modelName] || pricing['_default']
+      if (!modelPricing) {
         return defaultMultipliers
       }
 
       return {
-        input: pricing[modelName].input ?? 1.0,
-        output: pricing[modelName].output ?? 1.0,
-        cacheCreate: pricing[modelName].cacheCreate ?? 1.0,
-        cacheRead: pricing[modelName].cacheRead ?? 1.0
+        input: modelPricing.input ?? 1.0,
+        output: modelPricing.output ?? 1.0,
+        cacheCreate: modelPricing.cacheCreate ?? 1.0,
+        cacheRead: modelPricing.cacheRead ?? 1.0
       }
     } catch (error) {
       logger.error(`Failed to get multipliers for account ${accountId}, model ${modelName}:`, error)

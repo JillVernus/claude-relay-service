@@ -211,7 +211,7 @@
                 </span>
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
-                {{ row.durationMs ? `${row.durationMs} ms` : '…' }}
+                {{ row.durationMs ? row.durationMs : '…' }}
               </td>
             </tr>
           </tbody>
@@ -491,9 +491,12 @@ const formatTimeParts = (ts) => {
 
   try {
     const date = new Date(ts)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
     return {
       valid: true,
-      date: date.toLocaleDateString(),
+      date: `${day}/${month}/${year}`,
       time: date.toLocaleTimeString([], {
         hour12: false,
         hour: '2-digit',
@@ -514,7 +517,10 @@ const formatPrice = (price) => {
 
 const displayNumber = (value) => {
   if (value === null || value === undefined) return '—'
-  return value
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  if (num < 1000) return num.toString()
+  return (num / 1000).toFixed(1) + 'k'
 }
 
 const hasCache = (row) => {

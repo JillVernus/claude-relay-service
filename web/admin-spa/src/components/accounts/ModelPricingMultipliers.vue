@@ -22,9 +22,71 @@
       </button>
     </div>
 
-    <!-- Pricing table -->
+    <!-- Default multiplier section -->
     <div
-      v-if="Object.keys(pricing).length > 0"
+      class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50"
+    >
+      <div class="flex items-center justify-between">
+        <div>
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            默认倍率
+            <span class="ml-2 text-xs text-gray-500 dark:text-gray-400"
+              >(应用于所有未单独配置的模型)</span
+            >
+          </h4>
+          <div v-if="defaultMultiplier" class="mt-2 flex items-center space-x-4 text-sm">
+            <span class="text-gray-500 dark:text-gray-400">
+              Input:
+              <span :class="getMultiplierClass(defaultMultiplier.input)">{{
+                formatMultiplier(defaultMultiplier.input)
+              }}</span>
+            </span>
+            <span class="text-gray-500 dark:text-gray-400">
+              Output:
+              <span :class="getMultiplierClass(defaultMultiplier.output)">{{
+                formatMultiplier(defaultMultiplier.output)
+              }}</span>
+            </span>
+            <span class="text-gray-500 dark:text-gray-400">
+              Cache Create:
+              <span :class="getMultiplierClass(defaultMultiplier.cacheCreate)">{{
+                formatMultiplier(defaultMultiplier.cacheCreate)
+              }}</span>
+            </span>
+            <span class="text-gray-500 dark:text-gray-400">
+              Cache Read:
+              <span :class="getMultiplierClass(defaultMultiplier.cacheRead)">{{
+                formatMultiplier(defaultMultiplier.cacheRead)
+              }}</span>
+            </span>
+          </div>
+          <p v-else class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            未设置默认倍率，所有模型使用系统默认值 (1.0x)
+          </p>
+        </div>
+        <div class="flex space-x-2">
+          <button
+            class="inline-flex items-center rounded bg-purple-100 px-2.5 py-1.5 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/70"
+            type="button"
+            @click="editDefaultMultiplier"
+          >
+            {{ defaultMultiplier ? '编辑' : '设置' }}
+          </button>
+          <button
+            v-if="defaultMultiplier"
+            class="inline-flex items-center rounded bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900/70"
+            type="button"
+            @click="deleteDefaultMultiplier"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model-specific pricing table -->
+    <div
+      v-if="Object.keys(modelPricing).length > 0"
       class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
     >
       <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -64,7 +126,7 @@
         </thead>
         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
           <tr
-            v-for="(multipliers, modelName) in pricing"
+            v-for="(multipliers, modelName) in modelPricing"
             :key="modelName"
             class="hover:bg-gray-50 dark:hover:bg-gray-800/50"
           >
@@ -114,7 +176,7 @@
       </table>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state for model-specific pricing -->
     <div
       v-else
       class="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-6 text-center dark:border-gray-600 dark:bg-gray-800/50"
@@ -132,8 +194,13 @@
           stroke-width="2"
         />
       </svg>
-      <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        暂无定价倍率配置，使用默认价格（倍率 = 1.0）
+      <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">暂无模型特定的定价倍率配置</p>
+      <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+        {{
+          defaultMultiplier
+            ? '所有模型将使用上方的默认倍率'
+            : '所有模型使用系统默认价格（倍率 = 1.0）'
+        }}
       </p>
     </div>
 
@@ -153,12 +220,18 @@
         >
           <div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
             <h3 class="mb-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-              {{ showEditModal ? '编辑模型定价倍率' : '添加模型定价倍率' }}
+              {{
+                isEditingDefault
+                  ? '设置默认倍率'
+                  : showEditModal
+                    ? '编辑模型定价倍率'
+                    : '添加模型定价倍率'
+              }}
             </h3>
 
             <div class="space-y-4">
-              <!-- Model name -->
-              <div>
+              <!-- Model name (hidden for default multiplier) -->
+              <div v-if="!isEditingDefault">
                 <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   模型名称
                 </label>
@@ -169,6 +242,11 @@
                   placeholder="例如: gpt-5"
                   type="text"
                 />
+              </div>
+              <div v-else class="rounded-md bg-purple-50 p-3 dark:bg-purple-900/30">
+                <p class="text-sm text-purple-700 dark:text-purple-300">
+                  默认倍率将应用于所有未单独配置的模型
+                </p>
               </div>
 
               <!-- Multipliers grid -->
@@ -236,7 +314,7 @@
           <div class="bg-gray-50 px-4 py-3 dark:bg-gray-700/50 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               class="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm"
-              :disabled="saving || !modalForm.modelName"
+              :disabled="saving || (!isEditingDefault && !modalForm.modelName)"
               type="button"
               @click="saveModel"
             >
@@ -257,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { apiClient } from '@/config/api'
 
 const props = defineProps({
@@ -280,12 +358,29 @@ const loading = ref(false)
 const saving = ref(false)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
+const isEditingDefault = ref(false)
 const modalForm = ref({
   modelName: '',
   input: 1.0,
   output: 1.0,
   cacheCreate: 1.0,
   cacheRead: 1.0
+})
+
+// Computed: Default multiplier (stored as _default)
+const defaultMultiplier = computed(() => {
+  return pricing.value['_default'] || null
+})
+
+// Computed: Model-specific pricing (excludes _default)
+const modelPricing = computed(() => {
+  const result = {}
+  for (const [key, value] of Object.entries(pricing.value)) {
+    if (key !== '_default') {
+      result[key] = value
+    }
+  }
+  return result
 })
 
 // Computed API endpoint based on platform
@@ -339,7 +434,7 @@ const saveModel = async () => {
     if (response.success) {
       await fetchPricing()
       closeModal()
-      emit('success', '定价倍率保存成功')
+      emit('success', isEditingDefault.value ? '默认倍率保存成功' : '定价倍率保存成功')
     }
   } catch (error) {
     console.error('Failed to save pricing:', error)
@@ -372,6 +467,7 @@ const deleteModel = async (modelName) => {
 
 // Edit model
 const editModel = (modelName, multipliers) => {
+  isEditingDefault.value = false
   modalForm.value = {
     modelName,
     input: multipliers.input ?? 1.0,
@@ -382,10 +478,46 @@ const editModel = (modelName, multipliers) => {
   showEditModal.value = true
 }
 
+// Edit default multiplier
+const editDefaultMultiplier = () => {
+  isEditingDefault.value = true
+  const current = defaultMultiplier.value
+  modalForm.value = {
+    modelName: '_default',
+    input: current?.input ?? 1.0,
+    output: current?.output ?? 1.0,
+    cacheCreate: current?.cacheCreate ?? 1.0,
+    cacheRead: current?.cacheRead ?? 1.0
+  }
+  showEditModal.value = true
+}
+
+// Delete default multiplier
+const deleteDefaultMultiplier = async () => {
+  if (!confirm('确定要删除默认倍率吗？删除后所有未单独配置的模型将使用系统默认值 (1.0x)')) return
+
+  try {
+    const endpoint = getApiEndpoint()
+    if (!endpoint) return
+
+    const modelEndpoint = `${endpoint}/${encodeURIComponent('_default')}`
+    const response = await apiClient.delete(modelEndpoint)
+
+    if (response.success) {
+      await fetchPricing()
+      emit('success', '默认倍率删除成功')
+    }
+  } catch (error) {
+    console.error('Failed to delete default multiplier:', error)
+    emit('error', '删除默认倍率失败: ' + error.message)
+  }
+}
+
 // Close modal
 const closeModal = () => {
   showAddModal.value = false
   showEditModal.value = false
+  isEditingDefault.value = false
   modalForm.value = {
     modelName: '',
     input: 1.0,
