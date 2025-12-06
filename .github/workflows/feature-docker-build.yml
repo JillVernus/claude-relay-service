@@ -3,7 +3,7 @@ name: Feature Branch Docker Build
 on:
   push:
     branches:
-      - 'feature/**'
+      - main
   workflow_dispatch:
 
 permissions:
