@@ -14,7 +14,8 @@ permissions:
 
 env:
   UPSTREAM_REPO: Wei-Shaw/claude-relay-service
-  FEATURE_BRANCH: feature/request-logs
+  UPSTREAM_BRANCH: upstream
+  FEATURE_BRANCH: main
 
 jobs:
   sync:
@@ -37,19 +38,16 @@ jobs:
           git fetch upstream
           git fetch origin
 
-      - name: Sync main with upstream
+      - name: Sync upstream branch with upstream repo
         id: sync_main
         run: |
-          # Save workflow file before sync
-          cp .github/workflows/sync-upstream.yml /tmp/sync-upstream.yml
-
-          git checkout main
+          git checkout ${{ env.UPSTREAM_BRANCH }}
 
           BEHIND=$(git rev-list --count HEAD..upstream/main)
           echo "behind_count=$BEHIND" >> $GITHUB_OUTPUT
 
           if [ "$BEHIND" -eq 0 ]; then
-            echo "Main is already up to date with upstream"
+            echo "Upstream branch is already up to date"
             echo "main_updated=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -63,24 +61,16 @@ jobs:
             git reset --hard upstream/main
           fi
 
-          # Restore workflow file
-          mkdir -p .github/workflows
-          cp /tmp/sync-upstream.yml .github/workflows/sync-upstream.yml
-          if ! git diff --quiet .github/workflows/sync-upstream.yml; then
-            git add .github/workflows/sync-upstream.yml
-            git commit -m "chore: preserve sync-upstream workflow [skip ci]"
-          fi
-
-          git push origin main --force-with-lease
+          git push origin ${{ env.UPSTREAM_BRANCH }} --force-with-lease
           echo "main_updated=true" >> $GITHUB_OUTPUT
 
-      - name: Merge main into feature branch
+      - name: Merge upstream into main
         id: merge_feature
         if: steps.sync_main.outputs.main_updated == 'true' && inputs.skip_feature_merge != true
         run: |
           git checkout ${{ env.FEATURE_BRANCH }}
 
-          if git merge main --no-edit; then
+          if git merge ${{ env.UPSTREAM_BRANCH }} --no-edit; then
             echo "Merge successful"
             git push origin ${{ env.FEATURE_BRANCH }}
             echo "merge_status=success" >> $GITHUB_OUTPUT
@@ -97,7 +87,7 @@ jobs:
         run: |
           BRANCH_NAME="sync/upstream-$(date +%Y%m%d-%H%M%S)"
 
-          git checkout -b "$BRANCH_NAME" main
+          git checkout -b "$BRANCH_NAME" ${{ env.UPSTREAM_BRANCH }}
           git push origin "$BRANCH_NAME"
 
           gh pr create \
@@ -106,7 +96,7 @@ jobs:
             --title "🔄 Sync upstream updates (requires conflict resolution)" \
             --body "## Upstream Sync
 
-          This PR contains updates from upstream that have merge conflicts with your feature branch.
+          This PR contains updates from upstream that have merge conflicts with main.
 
           ### Steps to resolve:
           1. Checkout this branch locally
@@ -132,13 +122,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.sync_main.outputs.main_updated }}" == "true" ]; then
-            echo "✅ Main synced with upstream (${{ steps.sync_main.outputs.behind_count }} commits)" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Upstream branch synced (${{ steps.sync_main.outputs.behind_count }} commits)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "ℹ️ Main already up to date" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ Upstream branch already up to date" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [ "${{ steps.merge_feature.outputs.merge_status }}" == "success" ]; then
-            echo "✅ Feature branch merged successfully" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Main branch merged successfully" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.merge_feature.outputs.merge_status }}" == "conflict" ]; then
             echo "⚠️ Conflicts detected - PR created for manual resolution" >> $GITHUB_STEP_SUMMARY
           fi
