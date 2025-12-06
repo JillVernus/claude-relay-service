@@ -954,6 +954,11 @@ class UnifiedClaudeScheduler {
           return false
         }
 
+        // 检查是否临时不可用（5xx错误）
+        if (await this.isAccountTemporarilyUnavailable(accountId, accountType)) {
+          return false
+        }
+
         if (
           requestedModel &&
           typeof requestedModel === 'string' &&
@@ -1027,6 +1032,11 @@ class UnifiedClaudeScheduler {
           return false
         }
 
+        // 检查是否临时不可用（5xx错误）
+        if (await this.isAccountTemporarilyUnavailable(accountId, accountType)) {
+          return false
+        }
+
         // 检查并发限制（预检查，真正的原子抢占在 relayService 中进行）
         if (account.maxConcurrentTasks > 0) {
           const currentConcurrency = await redis.getConsoleAccountConcurrency(accountId)
@@ -1047,6 +1057,10 @@ class UnifiedClaudeScheduler {
         // 检查是否可调度
         if (!this._isSchedulable(accountResult.data.schedulable)) {
           logger.info(`🚫 Bedrock account ${accountId} is not schedulable`)
+          return false
+        }
+        // 检查是否临时不可用（5xx错误）
+        if (await this.isAccountTemporarilyUnavailable(accountId, accountType)) {
           return false
         }
         // Bedrock账户暂不需要限流检查，因为AWS管理限流
@@ -1101,6 +1115,10 @@ class UnifiedClaudeScheduler {
         }
         // 检查是否过载（529错误）
         if (await ccrAccountService.isAccountOverloaded(accountId)) {
+          return false
+        }
+        // 检查是否临时不可用（5xx错误）
+        if (await this.isAccountTemporarilyUnavailable(accountId, accountType)) {
           return false
         }
         return true

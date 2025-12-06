@@ -508,7 +508,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
       '0'
     )}`
 
-    logger.info(
+    logger.debug(
       `📊 Getting global model stats, period: ${period}, startDate: ${startDate}, endDate: ${endDate}, today: ${today}, currentMonth: ${currentMonth}`
     )
 
@@ -541,7 +541,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
         currentDate.setDate(currentDate.getDate() + 1)
       }
 
-      logger.info(`📊 Generated ${searchPatterns.length} search patterns for date range`)
+      logger.debug(`📊 Generated ${searchPatterns.length} search patterns for date range`)
     } else {
       // 使用默认的period
       const pattern =
@@ -551,7 +551,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
       searchPatterns = [pattern]
     }
 
-    logger.info('📊 Searching patterns:', searchPatterns)
+    logger.debug('📊 Searching patterns:', searchPatterns)
 
     // 获取所有匹配的keys
     const allKeys = []
@@ -560,7 +560,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
       allKeys.push(...keys)
     }
 
-    logger.info(`📊 Found ${allKeys.length} matching keys in total`)
+    logger.debug(`📊 Found ${allKeys.length} matching keys in total`)
 
     // 模型名标准化函数（与redis.js保持一致）
     const normalizeModelName = (model) => {
@@ -589,7 +589,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
       const match = key.match(/usage:model:daily:(.+):\d{4}-\d{2}-\d{2}$/)
 
       if (!match) {
-        logger.warn(`📊 Pattern mismatch for key: ${key}`)
+        logger.debug(`📊 Pattern mismatch for key: ${key}`)
         continue
       }
 
@@ -662,7 +662,7 @@ router.get('/model-stats', authenticateAdmin, async (req, res) => {
     // 按总费用排序
     modelStats.sort((a, b) => b.costs.total - a.costs.total)
 
-    logger.info(
+    logger.debug(
       `📊 Returning ${modelStats.length} global model stats for period ${period}:`,
       modelStats
     )
