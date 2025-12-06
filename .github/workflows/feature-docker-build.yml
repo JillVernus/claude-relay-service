@@ -1,0 +1,71 @@
+name: Feature Branch Docker Build
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          FEAT_VERSION=$(cat FEAT-VERSION 2>/dev/null | tr -d '[:space:]' || echo "dev")
+          COMBINED="${VERSION}-${FEAT_VERSION}"
+
+          DOCKER_USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          [ -z "$DOCKER_USER" ] && DOCKER_USER="${{ github.repository_owner }}"
+
+          DOCKER_IMAGE=$(echo "${DOCKER_USER}/claude-relay-service" | tr '[:upper:]' '[:lower:]')
+          GHCR_IMAGE=$(echo "ghcr.io/${{ github.repository_owner }}/claude-relay-service" | tr '[:upper:]' '[:lower:]')
+
+          {
+            echo "version=${COMBINED}"
+            echo "docker_image=${DOCKER_IMAGE}"
+            echo "ghcr_image=${GHCR_IMAGE}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.prep.outputs.docker_image }}:${{ steps.prep.outputs.version }}
+            ${{ steps.prep.outputs.docker_image }}:dev
+            ${{ steps.prep.outputs.ghcr_image }}:${{ steps.prep.outputs.version }}
+            ${{ steps.prep.outputs.ghcr_image }}:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
