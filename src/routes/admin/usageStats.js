@@ -2503,4 +2503,184 @@ router.get('/accounts/:accountId/usage-records', authenticateAdmin, async (req, 
   }
 })
 
+// 获取按账户分组的统计数据（用于 Request Logs 页面）
+// 支持通过 API Key 筛选：只显示该 API Key 实际使用过的账户
+router.get('/account-stats', authenticateAdmin, async (req, res) => {
+  try {
+    const { apiKeyId, period = 'daily' } = req.query
+    const today = redis.getDateStringInTimezone()
+
+    logger.info(
+      `📊 Getting account stats, period: ${period}, apiKeyId: ${apiKeyId || 'all'}, today: ${today}`
+    )
+
+    const client = redis.getClientSafe()
+    let accountIdsToQuery = new Set()
+    let accountUsageFromRecords = new Map() // 存储从 usage records 聚合的数据
+
+    if (apiKeyId) {
+      // 从 usage records 获取该 API Key 今天使用的账户和聚合数据
+      const rawRecords = await redis.getUsageRecords(apiKeyId, 5000)
+      const todayStart = new Date(today + 'T00:00:00')
+      const todayEnd = new Date(today + 'T23:59:59.999')
+
+      for (const record of rawRecords) {
+        if (!record || !record.accountId) continue
+
+        const recordTime = new Date(record.timestamp)
+        if (recordTime >= todayStart && recordTime <= todayEnd) {
+          accountIdsToQuery.add(record.accountId)
+
+          // 聚合该账户的使用数据
+          if (!accountUsageFromRecords.has(record.accountId)) {
+            accountUsageFromRecords.set(record.accountId, {
+              requests: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              cacheCreateTokens: 0,
+              cacheReadTokens: 0,
+              allTokens: 0,
+              totalCost: 0,
+              models: new Set()
+            })
+          }
+
+          const stats = accountUsageFromRecords.get(record.accountId)
+          stats.requests += 1
+          stats.inputTokens += record.inputTokens || 0
+          stats.outputTokens += record.outputTokens || 0
+          stats.cacheCreateTokens += record.cacheCreateTokens || 0
+          stats.cacheReadTokens += record.cacheReadTokens || 0
+          stats.allTokens += record.totalTokens || 0
+          stats.totalCost += record.cost || 0
+          if (record.model) {
+            stats.models.add(record.model)
+          }
+        }
+      }
+
+      logger.info(
+        `📊 Found ${accountIdsToQuery.size} accounts used by API Key ${apiKeyId} today`
+      )
+    } else {
+      // 获取所有今天有使用记录的账户
+      const pattern = `account_usage:daily:*:${today}`
+      const keys = await client.keys(pattern)
+
+      for (const key of keys) {
+        // 格式：account_usage:daily:{accountId}:{date}
+        const match = key.match(/account_usage:daily:(.+):\d{4}-\d{2}-\d{2}$/)
+        if (match) {
+          accountIdsToQuery.add(match[1])
+        }
+      }
+
+      logger.info(`📊 Found ${accountIdsToQuery.size} accounts with usage today`)
+    }
+
+    // 获取账户详情和统计数据
+    const accountStats = []
+
+    for (const accountId of accountIdsToQuery) {
+      // 解析账户信息
+      const accountInfo = await resolveAccountByPlatform(accountId)
+
+      let stats
+      if (apiKeyId && accountUsageFromRecords.has(accountId)) {
+        // 使用从 usage records 聚合的数据（针对特定 API Key）
+        const recordStats = accountUsageFromRecords.get(accountId)
+        stats = {
+          requests: recordStats.requests,
+          inputTokens: recordStats.inputTokens,
+          outputTokens: recordStats.outputTokens,
+          cacheCreateTokens: recordStats.cacheCreateTokens,
+          cacheReadTokens: recordStats.cacheReadTokens,
+          allTokens: recordStats.allTokens,
+          models: Array.from(recordStats.models)
+        }
+
+        // 计算费用
+        const usage = {
+          input_tokens: recordStats.inputTokens,
+          output_tokens: recordStats.outputTokens,
+          cache_creation_input_tokens: recordStats.cacheCreateTokens,
+          cache_read_input_tokens: recordStats.cacheReadTokens
+        }
+        // 使用第一个模型计算费用（如果有多个模型，费用已在 record 中聚合）
+        const primaryModel = recordStats.models.size > 0
+          ? Array.from(recordStats.models)[0]
+          : 'claude-sonnet-4-20250514'
+        const costData = CostCalculator.calculateCost(usage, primaryModel)
+
+        accountStats.push({
+          accountId,
+          accountName: accountInfo?.name || accountInfo?.email || accountId,
+          platform: accountInfo?.platform || 'unknown',
+          platformName: accountTypeNames[accountInfo?.platform] || '未知渠道',
+          ...stats,
+          costs: costData.costs,
+          formatted: costData.formatted
+        })
+      } else {
+        // 从 Redis 获取账户整体统计
+        const accountDailyKey = `account_usage:daily:${accountId}:${today}`
+        const dailyData = await client.hgetall(accountDailyKey)
+
+        if (dailyData && Object.keys(dailyData).length > 0) {
+          stats = {
+            requests: parseInt(dailyData.requests) || 0,
+            inputTokens: parseInt(dailyData.inputTokens) || 0,
+            outputTokens: parseInt(dailyData.outputTokens) || 0,
+            cacheCreateTokens: parseInt(dailyData.cacheCreateTokens) || 0,
+            cacheReadTokens: parseInt(dailyData.cacheReadTokens) || 0,
+            allTokens: parseInt(dailyData.allTokens) || 0
+          }
+
+          // 计算费用
+          const usage = {
+            input_tokens: stats.inputTokens,
+            output_tokens: stats.outputTokens,
+            cache_creation_input_tokens: stats.cacheCreateTokens,
+            cache_read_input_tokens: stats.cacheReadTokens
+          }
+          const costData = CostCalculator.calculateCost(usage, 'claude-sonnet-4-20250514')
+
+          accountStats.push({
+            accountId,
+            accountName: accountInfo?.name || accountInfo?.email || accountId,
+            platform: accountInfo?.platform || 'unknown',
+            platformName: accountTypeNames[accountInfo?.platform] || '未知渠道',
+            ...stats,
+            costs: costData.costs,
+            formatted: costData.formatted
+          })
+        }
+      }
+    }
+
+    // 按 allTokens 降序排序
+    accountStats.sort((a, b) => (b.allTokens || 0) - (a.allTokens || 0))
+
+    return res.json({
+      success: true,
+      data: accountStats,
+      summary: {
+        totalAccounts: accountStats.length,
+        totalRequests: accountStats.reduce((sum, a) => sum + (a.requests || 0), 0),
+        totalTokens: accountStats.reduce((sum, a) => sum + (a.allTokens || 0), 0)
+      },
+      period,
+      apiKeyId: apiKeyId || null,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    logger.error('❌ Failed to get account stats:', error)
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get account stats',
+      message: error.message
+    })
+  }
+})
+
 module.exports = router

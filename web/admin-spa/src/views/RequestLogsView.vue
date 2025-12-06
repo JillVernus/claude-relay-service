@@ -35,31 +35,29 @@
     </div>
 
     <!-- Statistics Section -->
-    <div class="space-y-3">
-      <!-- Charts Grid -->
-      <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
-        <TokenDistributionChart height="175px" :model-stats="requestLogsModelStats" />
-        <DetailedStatsTable :model-stats="requestLogsModelStats">
-          <template #actions>
-            <el-select
-              v-model="selectedApiKeyId"
-              clearable
-              placeholder="全部 API Keys"
-              size="small"
-              style="min-width: 220px"
-              @change="onApiKeyFilterChange"
-            >
-              <el-option label="全部 API Keys" value="" />
-              <el-option
-                v-for="option in apiKeyOptions"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
-          </template>
-        </DetailedStatsTable>
-      </div>
+    <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+      <TokenDistributionChart height="175px" :model-stats="requestLogsModelStats" />
+      <DetailedStatsTable :model-stats="requestLogsModelStats">
+        <template #actions>
+          <el-select
+            v-model="selectedApiKeyId"
+            clearable
+            placeholder="全部 API Keys"
+            size="small"
+            style="min-width: 180px"
+            @change="onApiKeyFilterChange"
+          >
+            <el-option label="全部 API Keys" value="" />
+            <el-option
+              v-for="option in apiKeyOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </template>
+      </DetailedStatsTable>
+      <AccountStatsTable :account-stats="requestLogsAccountStats" max-height="200px" />
     </div>
 
     <div class="overflow-hidden rounded-2xl bg-white shadow dark:bg-gray-900">
@@ -229,11 +227,12 @@ import { APP_CONFIG } from '@/config/app'
 import { useDashboardStore } from '@/stores/dashboard'
 import TokenDistributionChart from '@/components/common/TokenDistributionChart.vue'
 import DetailedStatsTable from '@/components/common/DetailedStatsTable.vue'
+import AccountStatsTable from '@/components/common/AccountStatsTable.vue'
 
 // Dashboard store for statistics
 const dashboardStore = useDashboardStore()
-const { requestLogsModelStats } = storeToRefs(dashboardStore)
-const { loadRequestLogsModelStats } = dashboardStore
+const { requestLogsModelStats, requestLogsAccountStats } = storeToRefs(dashboardStore)
+const { loadRequestLogsModelStats, loadRequestLogsAccountStats } = dashboardStore
 
 const headers = [
   'Time',
@@ -546,7 +545,10 @@ const getFlashClass = (row) => {
 const loadStats = async () => {
   statsLoading.value = true
   try {
-    await loadRequestLogsModelStats(selectedApiKeyId.value)
+    await Promise.all([
+      loadRequestLogsModelStats(selectedApiKeyId.value),
+      loadRequestLogsAccountStats(selectedApiKeyId.value)
+    ])
   } catch (error) {
     // console.error('Failed to load statistics:', error)
   } finally {

@@ -123,6 +123,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // Request logs 页面专用状态
   const requestLogsModelStats = ref([])
+  const requestLogsAccountStats = ref([])
 
   // 日期筛选
   const dateFilter = ref({
@@ -664,6 +665,25 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
+  // 加载 Request Logs 页面的账户统计 (固定为今日数据，支持 API Key 过滤)
+  async function loadRequestLogsAccountStats(apiKeyId = '') {
+    try {
+      const url = apiKeyId
+        ? `/admin/account-stats?period=daily&apiKeyId=${encodeURIComponent(apiKeyId)}`
+        : '/admin/account-stats?period=daily'
+
+      const response = await apiClient.get(url)
+      if (response.success) {
+        requestLogsAccountStats.value = response.data
+      } else {
+        requestLogsAccountStats.value = []
+      }
+    } catch (error) {
+      console.error('加载 Request Logs 账户统计失败:', error)
+      requestLogsAccountStats.value = []
+    }
+  }
+
   // 日期筛选相关方法
   function setDateFilterPreset(preset, options = {}) {
     const { silent = false, skipSave = false } = options
@@ -928,6 +948,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     apiKeysTrendData,
     accountUsageTrendData,
     requestLogsModelStats,
+    requestLogsAccountStats,
     dateFilter,
     trendGranularity,
     apiKeysTrendMetric,
@@ -944,6 +965,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     loadApiKeysTrend,
     loadAccountUsageTrend,
     loadRequestLogsModelStats,
+    loadRequestLogsAccountStats,
     setDateFilterPreset,
     onCustomDateRangeChange,
     setTrendGranularity,
