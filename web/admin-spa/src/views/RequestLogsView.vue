@@ -14,6 +14,11 @@
         <span v-if="statsCountdown > 0" class="text-xs text-gray-400 dark:text-gray-500">
           统计刷新 {{ statsCountdown }}s
         </span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-gray-500 dark:text-gray-400">简洁</span>
+          <el-switch v-model="isAdvancedView" size="small" @change="onViewModeChange" />
+          <span class="text-xs text-gray-500 dark:text-gray-400">详细</span>
+        </div>
         <el-select
           v-model="fetchLimit"
           size="small"
@@ -66,7 +71,7 @@
           <thead class="bg-gray-50 dark:bg-gray-800/50">
             <tr>
               <th
-                v-for="header in headers"
+                v-for="header in displayHeaders"
                 :key="header"
                 class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
               >
@@ -80,40 +85,48 @@
               :key="row.requestId"
               :class="['hover:bg-gray-50/70 dark:hover:bg-gray-800/50', getFlashClass(row)]"
             >
-              <td class="px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100">
-                <template
-                  v-for="time in [formatTimeParts(row.timestamp)]"
-                  :key="time.date || time.fallback || row.requestId"
-                >
-                  <div v-if="time.valid" class="flex flex-col leading-tight">
-                    <span>{{ time.date }}</span>
-                    <span class="text-gray-500 dark:text-gray-400">{{ time.time }}</span>
-                  </div>
-                  <span v-else>{{ time.fallback || '—' }}</span>
-                </template>
+              <td class="px-3 py-1.5">
+                <div class="flex flex-col font-mono text-xs leading-[1.2]">
+                  <!-- Request start time -->
+                  <span class="text-green-600 dark:text-green-400">
+                    {{ formatTimeOnly(row.timestamp) }}
+                  </span>
+                  <!-- Response completed time -->
+                  <span class="text-blue-600 dark:text-blue-400">
+                    {{ formatTimeOnly(row.completedAt) }}
+                  </span>
+                  <!-- Duration -->
+                  <span class="text-purple-600 dark:text-purple-400">
+                    {{ row.durationMs ? row.durationMs + ' ms' : '…' }}
+                  </span>
+                </div>
               </td>
-              <td class="px-3 py-1.5 font-mono text-xs text-gray-700 dark:text-gray-100">
+              <td
+                v-if="isAdvancedView"
+                class="px-3 py-1.5 font-mono text-xs text-gray-700 dark:text-gray-100"
+              >
                 {{ row.requestId }}
               </td>
-              <td class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-200">
+              <td
+                v-if="isAdvancedView"
+                class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-200"
+              >
                 {{ row.endpoint }}
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200">
                 {{ row.apiKeyName || row.apiKeyId || '—' }}
               </td>
-              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200">
-                <div class="flex flex-col leading-tight">
+              <td class="px-3 py-1.5">
+                <div class="flex flex-col font-mono text-xs leading-[1.2]">
                   <span>{{ row.accountName || row.accountId || '—' }}</span>
-                  <span v-if="row.accountTypeName" class="text-gray-400 dark:text-gray-500">
-                    {{ row.accountTypeName }}
+                  <span class="text-gray-400 dark:text-gray-500">
+                    {{ row.accountTypeName || '—' }}
                   </span>
+                  <span>{{ row.model || '—' }}</span>
                 </div>
               </td>
-              <td class="px-3 py-1.5 text-xs text-gray-800 dark:text-gray-100">
-                {{ row.model || '—' }}
-              </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
-                <div class="flex flex-col font-mono text-xs leading-relaxed">
+                <div class="flex flex-col font-mono text-xs leading-[1.2]">
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
                     <span class="text-gray-400 dark:text-gray-500">: </span>
@@ -146,10 +159,7 @@
                 </div>
               </td>
               <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
-                <div
-                  v-if="row.costBreakdown"
-                  class="flex flex-col font-mono text-xs leading-relaxed"
-                >
+                <div v-if="row.costBreakdown" class="flex flex-col font-mono text-xs leading-[1.2]">
                   <span>
                     <span class="inline-block w-12 text-gray-500 dark:text-gray-400">In/Out</span>
                     <span class="text-gray-400 dark:text-gray-500">: </span>
@@ -208,9 +218,6 @@
                   {{ row.statusDisplay }}
                 </span>
               </td>
-              <td class="px-3 py-1.5 text-xs text-gray-700 dark:text-gray-100">
-                {{ row.durationMs ? row.durationMs : '…' }}
-              </td>
             </tr>
           </tbody>
         </table>
@@ -234,18 +241,32 @@ const dashboardStore = useDashboardStore()
 const { requestLogsModelStats, requestLogsAccountStats } = storeToRefs(dashboardStore)
 const { loadRequestLogsModelStats, loadRequestLogsAccountStats } = dashboardStore
 
-const headers = [
-  'Time',
+// All column headers (advanced view)
+const allHeaders = [
+  'DateTime',
   'Request ID',
   'Endpoint',
   'API Key',
-  'Account',
-  'Model',
+  'Account/Model',
   'Tokens',
   'Price',
-  'Status',
-  'Duration'
+  'Status'
 ]
+
+// Basic view hides Request ID and Endpoint
+const basicHeaders = ['DateTime', 'API Key', 'Account/Model', 'Tokens', 'Price', 'Status']
+
+// View mode (from localStorage, default to basic view)
+const VIEW_MODE_KEY = 'requestLogs.advancedView'
+const isAdvancedView = ref(localStorage.getItem(VIEW_MODE_KEY) === 'true')
+
+const onViewModeChange = () => {
+  localStorage.setItem(VIEW_MODE_KEY, isAdvancedView.value.toString())
+}
+
+const displayHeaders = computed(() => {
+  return isAdvancedView.value ? allHeaders : basicHeaders
+})
 
 const isNilOrEmpty = (value) => value === undefined || value === null || value === ''
 
@@ -485,26 +506,19 @@ const sortedRows = computed(() => {
     })
 })
 
-const formatTimeParts = (ts) => {
-  if (!ts) return { valid: false, fallback: '—' }
-
+// Format timestamp to time only (HH:MM:SS)
+const formatTimeOnly = (ts) => {
+  if (!ts) return '—'
   try {
     const date = new Date(ts)
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
-    return {
-      valid: true,
-      date: `${day}/${month}/${year}`,
-      time: date.toLocaleTimeString([], {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
-    }
-  } catch (e) {
-    return { valid: false, fallback: ts }
+    return date.toLocaleTimeString([], {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch {
+    return '—'
   }
 }
 
