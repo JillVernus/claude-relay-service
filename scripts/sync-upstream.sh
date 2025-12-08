@@ -18,8 +18,9 @@ NC='\033[0m' # No Color
 # Configuration
 UPSTREAM_REMOTE="upstream"
 ORIGIN_REMOTE="origin"
-MAIN_BRANCH="upstream"
-FEATURE_BRANCH="main"
+UPSTREAM_BRANCH_NAME="main"      # Branch name on the upstream remote
+LOCAL_SYNC_BRANCH="upstream"     # Local branch that tracks upstream
+FEATURE_BRANCH="main"            # Your customized branch
 
 # Parse arguments
 STOP_AT_STEP=""
@@ -36,11 +37,11 @@ print_usage() {
     echo "  -h, --help            Show this help message"
     echo ""
     echo "Steps:"
-    echo "  1. Checkout main branch"
-    echo "  2. Fetch upstream"
-    echo "  3. Merge upstream/main into main (fast-forward)"
-    echo "  4. Push main to origin"
-    echo "  5. Checkout feature branch and merge main"
+    echo "  1. Checkout local sync branch (upstream)"
+    echo "  2. Fetch upstream remote"
+    echo "  3. Merge upstream/main into local sync branch (fast-forward)"
+    echo "  4. Push local sync branch to origin"
+    echo "  5. Checkout feature branch (main) and merge sync branch"
     echo "  6. Push feature branch and verify"
     echo ""
     echo "Examples:"
@@ -171,13 +172,13 @@ echo "Upstream URL: $(git remote get-url $UPSTREAM_REMOTE)"
 confirm
 
 # ==============================================================================
-# Step 1: Checkout main
+# Step 1: Checkout local sync branch
 # ==============================================================================
-print_step "1" "Checkout main branch"
+print_step "1" "Checkout local sync branch ($LOCAL_SYNC_BRANCH)"
 
-run_cmd "git checkout $MAIN_BRANCH"
+run_cmd "git checkout $LOCAL_SYNC_BRANCH"
 
-print_success "On main branch"
+print_success "On $LOCAL_SYNC_BRANCH branch"
 check_stop "1"
 
 # ==============================================================================
@@ -189,12 +190,12 @@ run_cmd "git fetch $UPSTREAM_REMOTE"
 
 # Show what's new
 if [ "$DRY_RUN" = false ]; then
-    BEHIND=$(git rev-list --count HEAD..$UPSTREAM_REMOTE/$MAIN_BRANCH 2>/dev/null || echo "0")
+    BEHIND=$(git rev-list --count HEAD..$UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME 2>/dev/null || echo "0")
     if [ "$BEHIND" -gt 0 ]; then
         print_success "Found $BEHIND new commit(s) from upstream"
         echo ""
         echo "New commits:"
-        git log --oneline HEAD..$UPSTREAM_REMOTE/$MAIN_BRANCH | head -10
+        git log --oneline HEAD..$UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME | head -10
     else
         print_success "Already up to date with upstream"
     fi
@@ -203,61 +204,61 @@ fi
 check_stop "2"
 
 # ==============================================================================
-# Step 3: Merge upstream into main (fast-forward only)
+# Step 3: Merge upstream into local sync branch (fast-forward only)
 # ==============================================================================
-print_step "3" "Merge upstream/main into main (fast-forward)"
+print_step "3" "Merge $UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME into $LOCAL_SYNC_BRANCH (fast-forward)"
 
 if [ "$DRY_RUN" = false ]; then
-    if git merge --ff-only $UPSTREAM_REMOTE/$MAIN_BRANCH; then
+    if git merge --ff-only $UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME; then
         print_success "Fast-forward merge successful"
     else
         print_error "Fast-forward merge failed!"
         echo ""
-        echo "This means main has diverged from upstream."
-        echo "To fix this, you can reset main to upstream:"
-        echo -e "${YELLOW}  git reset --hard $UPSTREAM_REMOTE/$MAIN_BRANCH${NC}"
+        echo "This means $LOCAL_SYNC_BRANCH has diverged from upstream."
+        echo "To fix this, you can reset $LOCAL_SYNC_BRANCH to upstream:"
+        echo -e "${YELLOW}  git reset --hard $UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME${NC}"
         echo ""
-        read -p "Reset main to upstream? [y/N]: " -n 1 -r
+        read -p "Reset $LOCAL_SYNC_BRANCH to upstream? [y/N]: " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            run_cmd "git reset --hard $UPSTREAM_REMOTE/$MAIN_BRANCH"
-            print_success "Main reset to upstream"
+            run_cmd "git reset --hard $UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME"
+            print_success "$LOCAL_SYNC_BRANCH reset to upstream"
         else
             print_error "Please resolve manually"
             exit 1
         fi
     fi
 else
-    print_cmd "git merge --ff-only $UPSTREAM_REMOTE/$MAIN_BRANCH"
+    print_cmd "git merge --ff-only $UPSTREAM_REMOTE/$UPSTREAM_BRANCH_NAME"
     echo -e "${CYAN}  (dry run - skipped)${NC}"
 fi
 
 check_stop "3"
 
 # ==============================================================================
-# Step 4: Push main to origin
+# Step 4: Push local sync branch to origin
 # ==============================================================================
-print_step "4" "Push updated main to origin"
+print_step "4" "Push updated $LOCAL_SYNC_BRANCH to origin"
 
 confirm
- 
-run_cmd "git push $ORIGIN_REMOTE $MAIN_BRANCH"
 
-print_success "Main pushed to origin"
+run_cmd "git push $ORIGIN_REMOTE $LOCAL_SYNC_BRANCH"
+
+print_success "$LOCAL_SYNC_BRANCH pushed to origin"
 check_stop "4"
 
 # ==============================================================================
-# Step 5: Merge main into feature branch
+# Step 5: Merge local sync branch into feature branch
 # ==============================================================================
-print_step "5" "Checkout feature branch and merge main"
+print_step "5" "Checkout feature branch and merge $LOCAL_SYNC_BRANCH"
 
 run_cmd "git checkout $FEATURE_BRANCH"
 
 echo ""
-echo "Merging main into $FEATURE_BRANCH..."
+echo "Merging $LOCAL_SYNC_BRANCH into $FEATURE_BRANCH..."
 
 if [ "$DRY_RUN" = false ]; then
-    if git merge $MAIN_BRANCH -m "Merge upstream updates into $FEATURE_BRANCH"; then
+    if git merge $LOCAL_SYNC_BRANCH -m "Merge upstream updates into $FEATURE_BRANCH"; then
         print_success "Merge successful"
     else
         print_error "Merge conflicts detected!"
@@ -272,7 +273,7 @@ if [ "$DRY_RUN" = false ]; then
         exit 1
     fi
 else
-    print_cmd "git merge $MAIN_BRANCH -m \"Merge upstream updates into $FEATURE_BRANCH\""
+    print_cmd "git merge $LOCAL_SYNC_BRANCH -m \"Merge upstream updates into $FEATURE_BRANCH\""
     echo -e "${CYAN}  (dry run - skipped)${NC}"
 fi
 
