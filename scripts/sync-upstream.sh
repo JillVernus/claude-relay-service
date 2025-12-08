@@ -300,6 +300,11 @@ if should_run_step 5; then
             echo "Conflicted files:"
             git diff --name-only --diff-filter=U
             echo ""
+            echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BLUE}💡 AI-Assisted Resolution:${NC}"
+            echo -e "   Ask Claude: ${GREEN}'Read .github/MERGE_CONTEXT.md and help resolve conflicts'${NC}"
+            echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
 
             while true; do
                 echo -e "${YELLOW}Options:${NC}"
