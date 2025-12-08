@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 # Configuration
 UPSTREAM_REMOTE="upstream"
 ORIGIN_REMOTE="origin"
-MAIN_BRANCH="main"
-FEATURE_BRANCH="feature/request-logs"
+MAIN_BRANCH="upstream"
+FEATURE_BRANCH="main"
 
 # Parse arguments
 STOP_AT_STEP=""
@@ -240,7 +240,7 @@ check_stop "3"
 print_step "4" "Push updated main to origin"
 
 confirm
-
+ 
 run_cmd "git push $ORIGIN_REMOTE $MAIN_BRANCH"
 
 print_success "Main pushed to origin"
